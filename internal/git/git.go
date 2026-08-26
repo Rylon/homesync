@@ -28,7 +28,6 @@ func (r *Repo) Command(args ...string) *exec.Cmd {
 }
 
 // Runs the specified Git command, capturing stdout or stderr if the command errored out.
-// explains itself there.
 func (r *Repo) run(args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := r.Command(args...)
