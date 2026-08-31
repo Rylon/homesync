@@ -55,7 +55,7 @@ func parseStatus(out string) ([]FileStatus, error) {
 		}
 
 		if len(record) < 4 {
-			return nil, fmt.Errorf("Error parsing status record %q - it is too short to hold a status and a path.", record)
+			return nil, fmt.Errorf("status record %q is too short to hold a status and a path", record)
 		}
 
 		entry := FileStatus{
@@ -69,7 +69,7 @@ func parseStatus(out string) ([]FileStatus, error) {
 		// here keeps the following entries aligned.
 		if entry.X == 'R' || entry.X == 'C' || entry.Y == 'R' || entry.Y == 'C' {
 			if i+1 >= len(records) {
-				return nil, fmt.Errorf("Error parsing status record %q - it claims a rename, but no previous path was found.", record)
+				return nil, fmt.Errorf("status record %q claims a rename, but no previous path follows", record)
 			}
 			i++
 			entry.OldPath = records[i]

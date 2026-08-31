@@ -39,7 +39,7 @@ func (r *Repo) run(args ...string) (string, error) {
 		if message == "" {
 			message = err.Error()
 		}
-		return stdout.String(), fmt.Errorf("Error - git %s: %s", strings.Join(args, " "), message)
+		return stdout.String(), fmt.Errorf("git %s: %s", strings.Join(args, " "), message)
 	}
 	return stdout.String(), nil
 }

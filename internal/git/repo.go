@@ -24,7 +24,7 @@ func (r *Repo) Branch() (string, error) {
 func (r *Repo) RemoteURL() (string, error) {
 	out, err := r.run("config", "--get", "remote.origin.url")
 	if err != nil {
-		return "", fmt.Errorf("Error - no origin remote configured for %s", r.Path)
+		return "", fmt.Errorf("no origin remote configured for %s", r.Path)
 	}
 
 	return strings.TrimSpace(out), nil
@@ -46,7 +46,7 @@ func (r *Repo) AheadAndBehind(upstream string) (ahead, behind int, err error) {
 
 	fields := strings.Fields(strings.TrimSpace(out))
 	if len(fields) != 2 {
-		return 0, 0, fmt.Errorf("Unexpected number of fields from `rev-list`, expected 2, but got %q.", out)
+		return 0, 0, fmt.Errorf("unexpected number of fields from `rev-list`, expected 2, but got %q", out)
 	}
 
 	if behind, err = strconv.Atoi(fields[0]); err != nil {
