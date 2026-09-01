@@ -17,13 +17,13 @@ func writeSubdirFile(t *testing.T, root, content string) {
 func TestSubdirsReadsLinesInOrder(t *testing.T) {
 	repos := t.TempDir()
 	root := mkCastle(t, repos, "dotfiles")
-	writeSubdirFile(t, root, ".homesick/repos/dotfiles\n.claude\n.config\n.config/ghostty\n")
+	writeSubdirFile(t, root, ".homesick/repos/dotfiles\n.exampleapp\n.config\n.config/exampletool\n")
 
 	got, err := Subdirs(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{".homesick/repos/dotfiles", ".claude", ".config", ".config/ghostty"}
+	want := []string{".homesick/repos/dotfiles", ".exampleapp", ".config", ".config/exampletool"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Subdirs = %q, want %q", got, want)
 	}
@@ -46,13 +46,13 @@ func TestSubdirsOnMissingFileReturnsEmpty(t *testing.T) {
 func TestSubdirsSkipsBlankLines(t *testing.T) {
 	repos := t.TempDir()
 	root := mkCastle(t, repos, "dotfiles")
-	writeSubdirFile(t, root, ".claude\n\n   \n.config\n")
+	writeSubdirFile(t, root, ".exampleapp\n\n   \n.config\n")
 
 	got, err := Subdirs(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{".claude", ".config"}
+	want := []string{".exampleapp", ".config"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Subdirs = %q, want %q", got, want)
 	}
@@ -61,13 +61,13 @@ func TestSubdirsSkipsBlankLines(t *testing.T) {
 func TestSubdirsStripsCarriageReturns(t *testing.T) {
 	repos := t.TempDir()
 	root := mkCastle(t, repos, "dotfiles")
-	writeSubdirFile(t, root, ".claude\r\n.config\r\n")
+	writeSubdirFile(t, root, ".exampleapp\r\n.config\r\n")
 
 	got, err := Subdirs(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{".claude", ".config"}
+	want := []string{".exampleapp", ".config"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Subdirs = %q, want %q", got, want)
 	}

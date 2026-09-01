@@ -89,9 +89,9 @@ func TestCheckRejectsBrokenBashExtension(t *testing.T) {
 	}
 }
 
-// Most dotfiles have no checker. They must pass rather than block a commit.
+// Make sure a file with no syntax checker is properly treated as passing.
 func TestCheckIgnoresUnknownExtension(t *testing.T) {
-	path := write(t, "starship.toml", "this is not [valid toml")
+	path := write(t, "example.toml", "this is not [valid toml")
 
 	if err := Check(path); err != nil {
 		t.Errorf("Check = %v, want nil for an unchecked type", err)
