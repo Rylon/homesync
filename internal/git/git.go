@@ -23,14 +23,14 @@ func New(path string) *Repo {
 // Builds a Git command for later execution, the caller decides how to handle stdout/stderr,
 // depending on whether they just want to capture the output, or hand control over to the terminal
 // for commands like commit and push.
-func (r *Repo) Command(args ...string) *exec.Cmd {
-	return exec.Command("git", append([]string{"-C", r.Path}, args...)...)
+func (repo *Repo) Command(args ...string) *exec.Cmd {
+	return exec.Command("git", append([]string{"-C", repo.Path}, args...)...)
 }
 
 // Runs the specified Git command, capturing stdout or stderr if the command errored out.
-func (r *Repo) run(args ...string) (string, error) {
+func (repo *Repo) run(args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := r.Command(args...)
+	cmd := repo.Command(args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 

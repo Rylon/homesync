@@ -19,8 +19,8 @@ type Problem struct {
 	Err  error
 }
 
-func (p Problem) String() string {
-	return p.Err.Error()
+func (problem Problem) String() string {
+	return problem.Err.Error()
 }
 
 // Check validates a given file. If the file extension has no checker defined,

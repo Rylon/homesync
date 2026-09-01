@@ -33,8 +33,8 @@ type Castle struct {
 
 // Home is the subfolder that maps onto $HOME, for example
 // ~/.homesick/repos/<repo_name>/home
-func (c Castle) Home() string {
-	return filepath.Join(c.Root, HomeDirName)
+func (castle Castle) Home() string {
+	return filepath.Join(castle.Root, HomeDirName)
 }
 
 // ReposDir returns the directory that holds all castles.

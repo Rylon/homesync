@@ -8,7 +8,7 @@ import (
 )
 
 // addOrigin gives the repo a bare origin and pushes main to it.
-func addOrigin(t *testing.T, r *Repo) string {
+func addOrigin(t *testing.T, repo *Repo) string {
 	t.Helper()
 	parent, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -19,8 +19,8 @@ func addOrigin(t *testing.T, r *Repo) string {
 	if out, err := exec.Command("git", "init", "--bare", "-b", "main", bare).CombinedOutput(); err != nil {
 		t.Fatalf("git init --bare: %v\n%s", err, out)
 	}
-	mustGit(t, r.Path, "remote", "add", "origin", bare)
-	mustGit(t, r.Path, "push", "-u", "origin", "main")
+	mustGit(t, repo.Path, "remote", "add", "origin", bare)
+	mustGit(t, repo.Path, "push", "-u", "origin", "main")
 	return bare
 }
 
@@ -46,10 +46,10 @@ func commitViaClone(t *testing.T, bare, rel, content string) {
 }
 
 func TestBranchReturnsCurrentBranch(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	got, err := r.Branch()
+	got, err := repo.Branch()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,11 +59,11 @@ func TestBranchReturnsCurrentBranch(t *testing.T) {
 }
 
 func TestRemoteURLReturnsOriginURL(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	bare := addOrigin(t, r)
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	bare := addOrigin(t, repo)
 
-	got, err := r.RemoteURL()
+	got, err := repo.RemoteURL()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,19 +73,19 @@ func TestRemoteURLReturnsOriginURL(t *testing.T) {
 }
 
 func TestRemoteURLWithoutOriginReturnsError(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	if _, err := r.RemoteURL(); err == nil {
+	if _, err := repo.RemoteURL(); err == nil {
 		t.Fatal("want an error when no origin is configured, got nil")
 	}
 }
 
 func TestRevParseReturnsFullHash(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	got, err := r.RevParse("HEAD")
+	got, err := repo.RevParse("HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,11 +95,11 @@ func TestRevParseReturnsFullHash(t *testing.T) {
 }
 
 func TestAheadAndBehindInSyncIsZero(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	addOrigin(t, r)
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	addOrigin(t, repo)
 
-	ahead, behind, err := r.AheadAndBehind("origin/main")
+	ahead, behind, err := repo.AheadAndBehind("origin/main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,12 +109,12 @@ func TestAheadAndBehindInSyncIsZero(t *testing.T) {
 }
 
 func TestAheadAndBehindCountsLocalCommits(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	addOrigin(t, r)
-	commitFile(t, r, ".vimrc", "set nocompatible\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	addOrigin(t, repo)
+	commitFile(t, repo, ".vimrc", "set nocompatible\n")
 
-	ahead, behind, err := r.AheadAndBehind("origin/main")
+	ahead, behind, err := repo.AheadAndBehind("origin/main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,13 +124,13 @@ func TestAheadAndBehindCountsLocalCommits(t *testing.T) {
 }
 
 func TestAheadAndBehindCountsRemoteCommitsAfterFetch(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	bare := addOrigin(t, r)
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	bare := addOrigin(t, repo)
 	commitViaClone(t, bare, ".inputrc", "set editing-mode vi\n")
-	mustGit(t, r.Path, "fetch", "origin")
+	mustGit(t, repo.Path, "fetch", "origin")
 
-	ahead, behind, err := r.AheadAndBehind("origin/main")
+	ahead, behind, err := repo.AheadAndBehind("origin/main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,20 +140,20 @@ func TestAheadAndBehindCountsRemoteCommitsAfterFetch(t *testing.T) {
 }
 
 func TestAheadAndBehindWithUnknownRefReturnsError(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	if _, _, err := r.AheadAndBehind("origin/main"); err == nil {
+	if _, _, err := repo.AheadAndBehind("origin/main"); err == nil {
 		t.Fatal("want an error for a missing upstream ref, got nil")
 	}
 }
 
 func TestLogReturnsSubjectsNewestFirst(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, "first.txt", "1\n")
-	commitFile(t, r, "second.txt", "2\n")
+	repo := newRepo(t)
+	commitFile(t, repo, "first.txt", "1\n")
+	commitFile(t, repo, "second.txt", "2\n")
 
-	got, err := r.Log(5)
+	got, err := repo.Log(5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,17 +169,17 @@ func TestLogReturnsSubjectsNewestFirst(t *testing.T) {
 }
 
 func TestLogRangeListsOnlyIncomingCommits(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	bare := addOrigin(t, r)
-	was, err := r.RevParse("origin/main")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	bare := addOrigin(t, repo)
+	was, err := repo.RevParse("origin/main")
 	if err != nil {
 		t.Fatal(err)
 	}
 	commitViaClone(t, bare, ".inputrc", "set editing-mode vi\n")
-	mustGit(t, r.Path, "fetch", "origin")
+	mustGit(t, repo.Path, "fetch", "origin")
 
-	got, err := r.LogRange(was, "origin/main")
+	got, err := repo.LogRange(was, "origin/main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,15 +192,15 @@ func TestLogRangeListsOnlyIncomingCommits(t *testing.T) {
 }
 
 func TestLogRangeWithNothingIncomingIsEmpty(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	addOrigin(t, r)
-	head, err := r.RevParse("HEAD")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	addOrigin(t, repo)
+	head, err := repo.RevParse("HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := r.LogRange(head, "origin/main")
+	got, err := repo.LogRange(head, "origin/main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,11 +210,11 @@ func TestLogRangeWithNothingIncomingIsEmpty(t *testing.T) {
 }
 
 func TestDiffShowsChangeForModifiedFile(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".zshrc", "export A=2\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".zshrc", "export A=2\n")
 
-	got, err := r.Diff(".zshrc")
+	got, err := repo.Diff(".zshrc")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,12 +224,12 @@ func TestDiffShowsChangeForModifiedFile(t *testing.T) {
 }
 
 func TestDiffIncludesStagedChanges(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".zshrc", "export A=2\n")
-	mustGit(t, r.Path, "add", "--", ".zshrc")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".zshrc", "export A=2\n")
+	mustGit(t, repo.Path, "add", "--", ".zshrc")
 
-	got, err := r.Diff(".zshrc")
+	got, err := repo.Diff(".zshrc")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,16 +239,16 @@ func TestDiffIncludesStagedChanges(t *testing.T) {
 }
 
 func TestAddStagesOnlyTheGivenPaths(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".zshrc", "export A=2\n")
-	writeFile(t, r.Path, ".untouched", "leave me\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".zshrc", "export A=2\n")
+	writeFile(t, repo.Path, ".untouched", "leave me\n")
 
-	if err := r.Add(".zshrc"); err != nil {
+	if err := repo.Add(".zshrc"); err != nil {
 		t.Fatal(err)
 	}
 
-	entries := statusOf(t, r)
+	entries := statusOf(t, repo)
 	if got := findStatus(t, entries, ".zshrc"); !got.Staged() {
 		t.Error(".zshrc Staged() = false, want true")
 	}
@@ -258,19 +258,19 @@ func TestAddStagesOnlyTheGivenPaths(t *testing.T) {
 }
 
 func TestIsRebasingIsFalseInACleanRepo(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	if r.IsRebasing() {
+	if repo.IsRebasing() {
 		t.Error("IsRebasing = true, want false")
 	}
 }
 
 func TestConflictedPathsIsEmptyWithoutAMerge(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	got, err := r.ConflictedPaths()
+	got, err := repo.ConflictedPaths()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,18 +280,18 @@ func TestConflictedPathsIsEmptyWithoutAMerge(t *testing.T) {
 }
 
 func TestConflictedPathsListsUnmergedFiles(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	bare := addOrigin(t, r)
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	bare := addOrigin(t, repo)
 	commitViaClone(t, bare, ".zshrc", "export A=from-remote\n")
-	writeFile(t, r.Path, ".zshrc", "export A=from-local\n")
-	mustGit(t, r.Path, "add", "--", ".zshrc")
-	mustGit(t, r.Path, "commit", "-m", "local change")
-	mustGit(t, r.Path, "fetch", "origin")
+	writeFile(t, repo.Path, ".zshrc", "export A=from-local\n")
+	mustGit(t, repo.Path, "add", "--", ".zshrc")
+	mustGit(t, repo.Path, "commit", "-m", "local change")
+	mustGit(t, repo.Path, "fetch", "origin")
 	// The merge is expected to fail, so its exit code is deliberately ignored.
-	_ = exec.Command("git", "-C", r.Path, "merge", "origin/main").Run()
+	_ = exec.Command("git", "-C", repo.Path, "merge", "origin/main").Run()
 
-	got, err := r.ConflictedPaths()
+	got, err := repo.ConflictedPaths()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,15 +301,15 @@ func TestConflictedPathsListsUnmergedFiles(t *testing.T) {
 }
 
 func TestDiffStatSummarisesRange(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	before, err := r.RevParse("HEAD")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	before, err := repo.RevParse("HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	commitFile(t, r, ".vimrc", "set nocompatible\n")
+	commitFile(t, repo, ".vimrc", "set nocompatible\n")
 
-	got, err := r.DiffStat(before, "HEAD")
+	got, err := repo.DiffStat(before, "HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,18 +15,18 @@ type FileStatus struct {
 }
 
 // Has this file been staged for commit?
-func (f FileStatus) Staged() bool {
-	return f.X != ' ' && f.X != '?'
+func (status FileStatus) Staged() bool {
+	return status.X != ' ' && status.X != '?'
 }
 
 // Has the file been modified in the worktree, but not yet staged for commit?
-func (f FileStatus) Unstaged() bool {
-	return f.Y != ' ' && f.Y != '?'
+func (status FileStatus) Unstaged() bool {
+	return status.Y != ' ' && status.Y != '?'
 }
 
 // The file has been deleted from the repo.
-func (f FileStatus) Deleted() bool {
-	return f.X == 'D' || f.Y == 'D'
+func (status FileStatus) Deleted() bool {
+	return status.X == 'D' || status.Y == 'D'
 }
 
 // Status returns every changed and untracked path in the repo.
@@ -34,8 +34,8 @@ func (f FileStatus) Deleted() bool {
 //   - `-uall` also lists files inside a new directory, otherwise we'd just see the new directory only,
 //     and potentially miss new files inside it.
 //   - `-z` separates records with NUL, which stops --porcelain quoting paths that contain spaces or quotes.
-func (r *Repo) Status() ([]FileStatus, error) {
-	out, err := r.run("status", "--porcelain=v1", "-uall", "-z")
+func (repo *Repo) Status() ([]FileStatus, error) {
+	out, err := repo.run("status", "--porcelain=v1", "-uall", "-z")
 	if err != nil {
 		return nil, err
 	}

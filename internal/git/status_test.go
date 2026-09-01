@@ -46,16 +46,16 @@ func writeFile(t *testing.T, dir, rel, content string) {
 }
 
 // We test committing an actual file, so we can make changes to it later in the test suite.
-func commitFile(t *testing.T, r *Repo, rel, content string) {
+func commitFile(t *testing.T, repo *Repo, rel, content string) {
 	t.Helper()
-	writeFile(t, r.Path, rel, content)
-	mustGit(t, r.Path, "add", "--", rel)
-	mustGit(t, r.Path, "commit", "-m", "add "+rel)
+	writeFile(t, repo.Path, rel, content)
+	mustGit(t, repo.Path, "add", "--", rel)
+	mustGit(t, repo.Path, "commit", "-m", "add "+rel)
 }
 
-func statusOf(t *testing.T, r *Repo) []FileStatus {
+func statusOf(t *testing.T, repo *Repo) []FileStatus {
 	t.Helper()
-	got, err := r.Status()
+	got, err := repo.Status()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,9 +64,9 @@ func statusOf(t *testing.T, r *Repo) []FileStatus {
 
 func findStatus(t *testing.T, entries []FileStatus, path string) FileStatus {
 	t.Helper()
-	for _, e := range entries {
-		if e.Path == path {
-			return e
+	for _, entry := range entries {
+		if entry.Path == path {
+			return entry
 		}
 	}
 	t.Fatalf("no status for %q; got %+v", path, entries)
@@ -74,20 +74,20 @@ func findStatus(t *testing.T, entries []FileStatus, path string) FileStatus {
 }
 
 func TestStatusOnCleanRepoIsEmpty(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
 
-	if got := statusOf(t, r); len(got) != 0 {
+	if got := statusOf(t, repo); len(got) != 0 {
 		t.Errorf("Status = %+v, want empty", got)
 	}
 }
 
 func TestStatusReportsModifiedTrackedFileAsChanged(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".zshrc", "export A=2\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".zshrc", "export A=2\n")
 
-	got := findStatus(t, statusOf(t, r), ".zshrc")
+	got := findStatus(t, statusOf(t, repo), ".zshrc")
 
 	if got.Untracked {
 		t.Error("Untracked = true, want false")
@@ -101,11 +101,11 @@ func TestStatusReportsModifiedTrackedFileAsChanged(t *testing.T) {
 }
 
 func TestStatusReportsUntrackedFileAsNew(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".newfile", "secret\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".newfile", "secret\n")
 
-	got := findStatus(t, statusOf(t, r), ".newfile")
+	got := findStatus(t, statusOf(t, repo), ".newfile")
 
 	if !got.Untracked {
 		t.Error("Untracked = false, want true")
@@ -115,11 +115,11 @@ func TestStatusReportsUntrackedFileAsNew(t *testing.T) {
 // Git --porcelain quotes paths containing spaces unless `-z` is specified, so we need to make sure
 // -z is always present.
 func TestStatusParsesPathWithSpaces(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, "my notes file.txt", "hello\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, "my notes file.txt", "hello\n")
 
-	got := findStatus(t, statusOf(t, r), "my notes file.txt")
+	got := findStatus(t, statusOf(t, repo), "my notes file.txt")
 
 	if !got.Untracked {
 		t.Error("Untracked = false, want true")
@@ -127,20 +127,20 @@ func TestStatusParsesPathWithSpaces(t *testing.T) {
 }
 
 func TestStatusParsesPathWithQuoteCharacter(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, `od"d.txt`, "hello\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, `od"d.txt`, "hello\n")
 
-	findStatus(t, statusOf(t, r), `od"d.txt`)
+	findStatus(t, statusOf(t, repo), `od"d.txt`)
 }
 
 func TestStatusReportsStagedNewFile(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".added", "x\n")
-	mustGit(t, r.Path, "add", "--", ".added")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".added", "x\n")
+	mustGit(t, repo.Path, "add", "--", ".added")
 
-	got := findStatus(t, statusOf(t, r), ".added")
+	got := findStatus(t, statusOf(t, repo), ".added")
 
 	if !got.Staged() {
 		t.Error("Staged() = false, want true")
@@ -151,13 +151,13 @@ func TestStatusReportsStagedNewFile(t *testing.T) {
 }
 
 func TestStatusReportsFileStagedThenModifiedAgain(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, ".zshrc", "export A=2\n")
-	mustGit(t, r.Path, "add", "--", ".zshrc")
-	writeFile(t, r.Path, ".zshrc", "export A=3\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".zshrc", "export A=2\n")
+	mustGit(t, repo.Path, "add", "--", ".zshrc")
+	writeFile(t, repo.Path, ".zshrc", "export A=3\n")
 
-	got := findStatus(t, statusOf(t, r), ".zshrc")
+	got := findStatus(t, statusOf(t, repo), ".zshrc")
 
 	if !got.Staged() {
 		t.Error("Staged() = false, want true")
@@ -170,13 +170,13 @@ func TestStatusReportsFileStagedThenModifiedAgain(t *testing.T) {
 // A rename emits two NUL-separated paths when `-z` is specified. Mishandling it shifts
 // every following entry by one field, so we need to make sure we're handling that correctly.
 func TestStatusParsesRenameAndKeepsFollowingEntries(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, "old-name.txt", "content\n")
-	commitFile(t, r, "zz-later.txt", "other\n")
-	mustGit(t, r.Path, "mv", "old-name.txt", "new-name.txt")
-	writeFile(t, r.Path, "zz-later.txt", "changed\n")
+	repo := newRepo(t)
+	commitFile(t, repo, "old-name.txt", "content\n")
+	commitFile(t, repo, "zz-later.txt", "other\n")
+	mustGit(t, repo.Path, "mv", "old-name.txt", "new-name.txt")
+	writeFile(t, repo.Path, "zz-later.txt", "changed\n")
 
-	entries := statusOf(t, r)
+	entries := statusOf(t, repo)
 
 	renamed := findStatus(t, entries, "new-name.txt")
 	if renamed.OldPath != "old-name.txt" {
@@ -193,42 +193,42 @@ func TestStatusParsesRenameAndKeepsFollowingEntries(t *testing.T) {
 // by default Git would only show the new directory, and ignore the files, so we wouldn't be able
 // to show them to the user.
 func TestStatusListsFilesInsideUntrackedDirectory(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	writeFile(t, r.Path, "newdir/a.txt", "a\n")
-	writeFile(t, r.Path, "newdir/b.txt", "b\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	writeFile(t, repo.Path, "newdir/a.txt", "a\n")
+	writeFile(t, repo.Path, "newdir/b.txt", "b\n")
 
-	entries := statusOf(t, r)
+	entries := statusOf(t, repo)
 
 	findStatus(t, entries, "newdir/a.txt")
 	findStatus(t, entries, "newdir/b.txt")
-	for _, e := range entries {
-		if e.Path == "newdir/" || e.Path == "newdir" {
-			t.Errorf("got a directory entry %q, want individual files", e.Path)
+	for _, entry := range entries {
+		if entry.Path == "newdir/" || entry.Path == "newdir" {
+			t.Errorf("got a directory entry %q, want individual files", entry.Path)
 		}
 	}
 }
 
 func TestStatusOmitsIgnoredFiles(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".gitignore", "ignored.txt\n")
-	writeFile(t, r.Path, "ignored.txt", "junk\n")
+	repo := newRepo(t)
+	commitFile(t, repo, ".gitignore", "ignored.txt\n")
+	writeFile(t, repo.Path, "ignored.txt", "junk\n")
 
-	for _, e := range statusOf(t, r) {
-		if e.Path == "ignored.txt" {
-			t.Errorf("ignored.txt appears in status: %+v", e)
+	for _, entry := range statusOf(t, repo) {
+		if entry.Path == "ignored.txt" {
+			t.Errorf("ignored.txt appears in status: %+v", entry)
 		}
 	}
 }
 
 func TestStatusReportsDeletedFile(t *testing.T) {
-	r := newRepo(t)
-	commitFile(t, r, ".zshrc", "export A=1\n")
-	if err := os.Remove(filepath.Join(r.Path, ".zshrc")); err != nil {
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	if err := os.Remove(filepath.Join(repo.Path, ".zshrc")); err != nil {
 		t.Fatal(err)
 	}
 
-	got := findStatus(t, statusOf(t, r), ".zshrc")
+	got := findStatus(t, statusOf(t, repo), ".zshrc")
 
 	if !got.Deleted() {
 		t.Error("Deleted() = false, want true")
