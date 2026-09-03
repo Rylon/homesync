@@ -5,6 +5,7 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/Rylon/homesync/internal/castle"
 	"github.com/Rylon/homesync/internal/git"
@@ -248,4 +249,209 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model.push.message, cmd = model.push.message.Update(msg)
 		return model, cmd
 	}
+}
+
+// handleKey handles keypresses for the current screen.
+func (model Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+
+	// We need to be able to always quit, no matter where we are in the app.
+	if key == "ctrl+c" {
+		return model, tea.Quit
+	}
+
+	// Each screen has its own key handling logic, so we pass the keypress along
+	// to the appropriate handler for the current screen.
+	switch model.screen {
+	case screenPicker:
+		return model.handlePickerKey(key)
+	case screenDashboard:
+		return model.handleDashboardKey(key)
+	case screenPush:
+		return model.handlePushKey(msg, key)
+	case screenPull:
+		return model.handlePullKey(key)
+	case screenRelink:
+		return model.handleRelinkKey(key)
+	}
+
+	return model, nil
+}
+
+// This fires when the execGit command has finished, and we need to route the result
+// to the correct place depending on if we're pushing or pulling.
+func (model Model) handleExecDone(msg execDoneMsg) (tea.Model, tea.Cmd) {
+	switch model.screen {
+	case screenPush:
+		return model.pushExecDone(msg)
+	case screenPull:
+		return model.pullExecDone(msg)
+	}
+
+	return model, model.reload()
+}
+
+// keys for the castle picker screen.
+func (model Model) handlePickerKey(key string) (tea.Model, tea.Cmd) {
+	switch key {
+
+	case "q", "esc":
+		return model, tea.Quit
+
+	case "up", "k":
+		if model.pickerCursor > 0 {
+			model.pickerCursor--
+		}
+
+	case "down", "j":
+		if model.pickerCursor < len(model.castles)-1 {
+			model.pickerCursor++
+		}
+
+	case "enter":
+		model.selectCastle(model.pickerCursor)
+		model.loading = true
+		return model, model.reload()
+
+	}
+
+	return model, nil
+}
+
+// keys for the main status dashboard. Most users of homesync will have a single castle
+// so they'll end up here most of the time, bypassing the castle picker.
+func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
+	switch key {
+
+	case "q", "esc":
+		return model, tea.Quit
+
+	case "r":
+		model.loading = true
+		model.notice = ""
+		return model, model.reload()
+
+	case "p":
+		model.screen = screenPush
+		model.notice = ""
+		model.push.resize(model.width, model.height)
+		model.push.sync(model.groups)
+		// triggers the diffCmd right away so the user sees the diff for the first file
+		// as soon as the screen loads, rather than having to move the cursor first.
+		return model, model.diffCmd()
+
+	case "u":
+		model.screen = screenPull
+		model.notice = ""
+		model.pull = pullState{}
+		return model, nil
+
+	case "l":
+		model.screen = screenRelink
+		model.notice = ""
+		model.relink.sync(model.actions)
+		return model, nil
+	}
+
+	return model, nil
+}
+
+// The main Bubble Tea render loop.
+func (model Model) View() tea.View {
+	var view tea.View
+
+	// We use the alt screen to avoid cluttering the user's scrollback with the UI,
+	// and making it a mess when they exit the app.
+	view.AltScreen = true
+	view.WindowTitle = "homesync"
+
+	body := ""
+	switch model.screen {
+
+	case screenPicker:
+		body = model.viewPicker()
+
+	case screenDashboard:
+		body = model.viewDashboard()
+
+	case screenPush:
+		body = model.viewPush()
+
+	case screenPull:
+		body = model.viewPull()
+
+	case screenRelink:
+		body = model.viewRelink()
+
+	}
+
+	view.Content = model.chrome(body)
+
+	return view
+}
+
+// contentWidth is the width a screen may draw into, inside the titlebar and footer padeding.
+func (model Model) contentWidth() int {
+	if model.width < 1 {
+		return fallbackWidth - 2*chromePadX
+	}
+	return model.width - 2*chromePadX
+}
+
+// help text renders at the bottom of the screen, but needs to be clipped to the
+// current width, to prevent overflow/wrapping.
+func (model Model) help(pairs ...[2]string) string {
+	return helpWidth(model.contentWidth(), pairs...)
+}
+
+// chrome draws the header/footer, and and any pending notices/errors around a screen.
+func (model Model) chrome(body string) string {
+	name := model.castle.Name
+	if name == "" {
+		name = "no castle selected"
+	}
+
+	header := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		titleStyle.Render("homesync"),
+		subtleStyle.Render("  "+name),
+	)
+
+	parts := []string{header, "", body}
+
+	if model.notice != "" {
+		parts = append(parts, "", okStyle.Render(trimRight(model.notice, model.contentWidth())))
+	}
+
+	if model.err != nil {
+		parts = append(parts, "", errStyle.Render(trimRight("Error: "+model.err.Error(), model.contentWidth())))
+	}
+
+	framed := lipgloss.NewStyle().
+		Padding(chromePadY, chromePadX).
+		Render(lipgloss.JoinVertical(lipgloss.Left, parts...))
+
+	// Ensure the frame is clipped to the current window size, to prevent overflow/wrapping.
+	return clipFrame(framed, model.width, model.height)
+}
+
+// viewPicker allows a user to pick a castle if they have more than one.
+// If they only have a single castle, it is automatically selected, and
+// the screen is skipped.
+func (model Model) viewPicker() string {
+	lines := []string{headingStyle.Render("Select a castle"), ""}
+
+	for index, castleEntry := range model.castles {
+		marker := "  "
+		style := valueStyle
+		if index == model.pickerCursor {
+			marker = "> "
+			style = selectedStyle
+		}
+		lines = append(lines, marker+style.Render(castleEntry.Name)+subtleStyle.Render("  "+castleEntry.Root))
+	}
+
+	lines = append(lines, "", model.help([2]string{"↑/↓", "move"}, [2]string{"enter", "select"}, [2]string{"q", "quit"}))
+
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
