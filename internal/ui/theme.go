@@ -1,6 +1,4 @@
-// Appearance only: colours, styles and the fixed dimensions the screens lay
-// out against. Anything that takes a width and fits text into it belongs in
-// `render.go` instead.
+// Appearance only: colours, styles, and dimensions only.
 
 package ui
 

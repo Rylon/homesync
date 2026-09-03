@@ -12,11 +12,13 @@ import (
 // helpWidth renders key hints, handling line breaks as needed, to stay within the width limit.
 //
 // `lipgloss.JoinVertical` pads every line to the widest one, so an overly long help text row
-// stretches the whole frame, and ends up wrapping/scrolling on the alt-screen in some terminals.
+// stretches the whole frame, and ends up wrapping/scrolling on the alt-screen in some terminals
+// (eg iTerm).
 func helpWidth(width int, pairs ...[2]string) string {
 	if width < 1 {
 		width = fallbackWidth
 	}
+
 	separator := subtleStyle.Render("  ·  ")
 	separatorWidth := lipgloss.Width(separator)
 
@@ -39,20 +41,24 @@ func helpWidth(width int, pairs ...[2]string) string {
 			current, currentWidth = item, itemWidth
 		}
 	}
+
 	if current != "" {
 		lines = append(lines, current)
 	}
+
 	return strings.Join(lines, "\n")
 }
 
 // clipFrame stops the frame from exceeding the terminal size, preventing any overflow
 // from wrapping/scrolling on the alt-screen, leaking the UI into shell scrollback
-// on terminals that support that.
+// on terminals that support that (eg iTerm).
 func clipFrame(content string, width, height int) string {
 	lines := strings.Split(content, "\n")
+
 	if height > 0 && len(lines) > height {
 		lines = lines[:height]
 	}
+
 	if width > 0 {
 		for index, line := range lines {
 			if lipgloss.Width(line) > width {
@@ -60,14 +66,16 @@ func clipFrame(content string, width, height int) string {
 			}
 		}
 	}
+
 	return strings.Join(lines, "\n")
 }
 
-// renderDiff colours a unified diff and clips it to the pane.
+// renderDiff adds colours to a diff and ensures it is clipped within the side panel.
 func renderDiff(body string, width, height int) string {
 	if height < 1 {
 		height = 1
 	}
+
 	lines := strings.Split(strings.TrimRight(body, "\n"), "\n")
 	if len(lines) > height {
 		// Spend one of the allotted rows on the marker, so the block is exactly
@@ -79,11 +87,14 @@ func renderDiff(body string, width, height int) string {
 	for _, line := range lines {
 		out = append(out, styleDiffLine(line, width))
 	}
+
 	return strings.Join(out, "\n")
 }
 
+// Sets the correct colour to use for each line of the diff, depending on what changed.
 func styleDiffLine(line string, width int) string {
 	clipped := trimRight(line, width)
+
 	switch {
 	case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"),
 		strings.HasPrefix(line, "diff "), strings.HasPrefix(line, "index "):
@@ -98,7 +109,7 @@ func styleDiffLine(line string, width int) string {
 	return valueStyle.Render(clipped)
 }
 
-// trimRight clips a string to width, marking the cut.
+// trimRight clips the end of a string to a given width, adding a `...` suffix.
 func trimRight(text string, width int) string {
 	if width <= 1 || lipgloss.Width(text) <= width {
 		return text
@@ -110,7 +121,7 @@ func trimRight(text string, width int) string {
 	return string(runes) + "…"
 }
 
-// trimLeft keeps the end of a path, which is the part that identifies it.
+// trimLeft does the same as trimRight, but clips the start of a string, adding a `...` prefix.
 func trimLeft(text string, width int) string {
 	if width <= 1 || lipgloss.Width(text) <= width {
 		return text
@@ -122,10 +133,10 @@ func trimLeft(text string, width int) string {
 	return "…" + string(runes)
 }
 
-// maxPreviewBytes caps how much of an untracked file is read. A large binary
-// would otherwise be loaded whole to render a preview.
 const maxPreviewBytes = 64 * 1024
 
+// readCapped reads files from disk, so they can be rendered as a diff in the side panel,
+// but is capped to 64KB so we don't try to read enormous files into memory for no good reason.
 func readCapped(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -138,9 +149,11 @@ func readCapped(path string) (string, error) {
 	if err != nil && err != io.EOF {
 		return "", err
 	}
+
 	text := string(buf[:bytesRead])
 	if bytesRead == maxPreviewBytes {
 		text += "\n… truncated"
 	}
+
 	return text, nil
 }
