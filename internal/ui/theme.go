@@ -50,3 +50,7 @@ var (
 	diffHunkStyle   = lipgloss.NewStyle().Foreground(colAccent)
 	diffHeaderStyle = lipgloss.NewStyle().Foreground(colMuted)
 )
+
+// Used to visually seperate bits of text in some columns, so we can ensure consistent
+// spacing within those columns, to avoid breaking the alignment.
+var separator = subtleStyle.Render("  ·  ")

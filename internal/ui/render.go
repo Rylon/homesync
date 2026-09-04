@@ -19,7 +19,6 @@ func helpWidth(width int, pairs ...[2]string) string {
 		width = fallbackWidth
 	}
 
-	separator := subtleStyle.Render("  ·  ")
 	separatorWidth := lipgloss.Width(separator)
 
 	var lines []string

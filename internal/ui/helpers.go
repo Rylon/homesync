@@ -1,9 +1,19 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 )
+
+// plural is a naive pluraliser, it just adds an "s" to the end if the count isn't 1, so it
+// won't handle irregular plurals, but it's good enough for our needs :)
+func plural(count int, word string) string {
+	if count == 1 {
+		return fmt.Sprintf("1 %s", word)
+	}
+	return fmt.Sprintf("%d %ss", count, word)
+}
 
 // tildePath renders paths within the $HOME folder shortened to ~, but returns
 // the path unmodified if it's outside $HOME.
