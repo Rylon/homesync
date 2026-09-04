@@ -51,6 +51,5 @@ var (
 	diffHeaderStyle = lipgloss.NewStyle().Foreground(colMuted)
 )
 
-// Used to visually seperate bits of text in some columns, so we can ensure consistent
-// spacing within those columns, to avoid breaking the alignment.
+// Used to visually separate related bits of text on a row, making sure they stay visually aligned.
 var separator = subtleStyle.Render("  ·  ")
