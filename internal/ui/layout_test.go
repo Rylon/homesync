@@ -39,9 +39,9 @@ func exampleCastleModel(width, height int) Model {
 		{Kind: link.Refused, Rel: ".homesick/repos/dotfiles/stray", Reason: "destination is inside the castle at " + testCastle.Root},
 	}
 	model.health = summariseLinks(model.actions)
-	model.push.sync(model.groups)
+	model.push.reconcile(model.groups)
 	model.push.diff = strings.Repeat("diff --git a/home/.exampleapp/settings.json b/home/.exampleapp/settings.json\n+a fairly long added line that should be clipped to the pane\n", 12)
-	model.relink.sync(model.actions)
+	model.relink.reconcile(model.actions)
 	return model
 }
 

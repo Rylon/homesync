@@ -201,8 +201,8 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// preserve the current cursor position, and any selections the user already made,
 		// while bringing in any new files that appeared, or removing any that no longer exist,
 		// for a much better user experience than just wiping the screen and starting over.
-		model.push.sync(model.groups)
-		model.relink.sync(model.actions)
+		model.push.reconcile(model.groups)
+		model.relink.reconcile(model.actions)
 
 		// Make sure we refresh the diff if the "push" screen is open, so it always
 		// matches whatever file the cursor is on.
@@ -333,7 +333,7 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 	case "p":
 		model.screen = screenPush
 		model.notice = ""
-		model.push.sync(model.groups)
+		model.push.reconcile(model.groups)
 		// triggers the diffCmd right away so the user sees the diff for the first file
 		// as soon as the screen loads, rather than having to move the cursor first.
 		return model, model.diffCmd()
@@ -347,7 +347,7 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 	case "l":
 		model.screen = screenRelink
 		model.notice = ""
-		model.relink.sync(model.actions)
+		model.relink.reconcile(model.actions)
 		return model, nil
 	}
 
