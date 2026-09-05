@@ -179,7 +179,6 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Used to adjust the window sizes, for example the split when a diff is being shown,
 		// or the help text bar adjusting to a new window size, etc.
 		model.width, model.height = msg.Width, msg.Height
-		model.push.resize(model.width, model.height)
 		return model, nil
 
 	case loadedMsg:
@@ -334,7 +333,6 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 	case "p":
 		model.screen = screenPush
 		model.notice = ""
-		model.push.resize(model.width, model.height)
 		model.push.sync(model.groups)
 		// triggers the diffCmd right away so the user sees the diff for the first file
 		// as soon as the screen loads, rather than having to move the cursor first.
