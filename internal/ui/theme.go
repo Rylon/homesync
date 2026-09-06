@@ -53,3 +53,6 @@ var (
 
 // Used to visually separate related bits of text on a row, making sure they stay visually aligned.
 var separator = subtleStyle.Render("  ·  ")
+
+// Divides the two panels on the push screen.
+var divider = dividerStyle.Render(" │ ")
