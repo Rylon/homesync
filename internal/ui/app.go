@@ -18,7 +18,7 @@ const (
 	screenDashboard screen = iota
 	screenPush
 	screenPull
-	screenRelink
+	screenLinks
 	screenPicker
 )
 
@@ -47,9 +47,9 @@ type Model struct {
 
 	pickerCursor int
 
-	push   pushState
-	pull   pullState
-	relink relinkState
+	push  pushState
+	pull  pullState
+	links linksState
 }
 
 // New builds the root Model for all the castles on a system, prompting the user to choose
@@ -205,12 +205,12 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// can just read attributes like `model.branch` and `model.files` directly.
 		model.snapshot = msg.snapshot
 
-		// Here we sync the Push and Relink screens with the new snapshots, this allows us to
+		// Here we sync the Push and Links screens with the new snapshots, this allows us to
 		// preserve the current cursor position, and any selections the user already made,
 		// while bringing in any new files that appeared, or removing any that no longer exist,
 		// for a much better user experience than just wiping the screen and starting over.
 		model.push.reconcile(model.groups)
-		model.relink.reconcile(model.actions)
+		model.links.reconcile(model.actions)
 
 		// Make sure we refresh the diff if the "push" screen is open, so it always
 		// matches whatever file the cursor is on.
@@ -278,8 +278,8 @@ func (model Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return model.handlePushKey(msg, key)
 	case screenPull:
 		return model.handlePullKey(key)
-	case screenRelink:
-		return model.handleRelinkKey(key)
+	case screenLinks:
+		return model.handleLinksKey(key)
 	}
 
 	return model, nil
@@ -351,9 +351,9 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 		return model, nil
 
 	case "l":
-		model.screen = screenRelink
+		model.screen = screenLinks
 		model.notice = ""
-		model.relink.reconcile(model.actions)
+		model.links.reconcile(model.actions)
 		return model, nil
 	}
 
@@ -384,8 +384,8 @@ func (model Model) View() tea.View {
 	case screenPull:
 		body = model.viewPull()
 
-	case screenRelink:
-		body = model.viewRelink()
+	case screenLinks:
+		body = model.viewLinks()
 
 	}
 

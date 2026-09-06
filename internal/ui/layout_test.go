@@ -41,7 +41,7 @@ func exampleCastleModel(width, height int) Model {
 	model.health = link.Summarise(model.actions)
 	model.push.reconcile(model.groups)
 	model.push.diff = strings.Repeat("diff --git a/home/.exampleapp/settings.json b/home/.exampleapp/settings.json\n+a fairly long added line that should be clipped to the pane\n", 12)
-	model.relink.reconcile(model.actions)
+	model.links.reconcile(model.actions)
 	return model
 }
 
@@ -91,8 +91,8 @@ func TestScreenResizingFitsVariousTerminalSizes(t *testing.T) {
 			model.pull.incoming = []git.Commit{{Hash: "abc1234", Subject: "add .inputrc"}}
 			model.pull.diffStat = strings.Repeat("home/.inputrc | 1 +\n", 3)
 		}},
-		{"relink", func(model *Model) { model.screen = screenRelink }},
-		{"relink confirm", func(model *Model) { model.screen = screenRelink; model.relink.confirm = true }},
+		{"links", func(model *Model) { model.screen = screenLinks }},
+		{"links confirm", func(model *Model) { model.screen = screenLinks; model.links.confirm = true }},
 		{"picker", func(model *Model) { model.screen = screenPicker }},
 	}
 

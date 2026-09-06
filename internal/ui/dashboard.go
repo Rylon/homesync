@@ -25,7 +25,7 @@ func (model Model) viewDashboard() string {
 		"",
 		menuItem("p", "push", "review changes, commit and publish"),
 		menuItem("u", "pull", "fetch, integrate and relink"),
-		menuItem("l", "relink", "repair symlinks without pulling"),
+		menuItem("l", "links", "create symlinks from castle to $HOME"),
 		"",
 		model.help([2]string{"r", "refresh"}, [2]string{"q", "quit"}),
 	}
