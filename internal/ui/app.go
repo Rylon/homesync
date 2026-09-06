@@ -90,7 +90,9 @@ func (model Model) Init() tea.Cmd {
 	if model.repo == nil {
 		return nil
 	}
-	return model.reload()
+	// Init can only return a command, so the loading flag `reload` sets is discarded here.
+	_, cmd := model.reload()
+	return cmd
 }
 
 // When Bubble Tea calls `Update`, it will be given a `loadedMsg` with a fresh snapshot
@@ -117,9 +119,11 @@ type loadedMsg struct {
 
 // The reload Bubble Tea commands sets up the job for reloading the snapshot, and how to return
 // it via the loadedMsg, so the Update loop can embed it into the root Model via the snapshot.
-func (model Model) reload() tea.Cmd {
+func (model Model) reload() (Model, tea.Cmd) {
+	model.loading = true
+
 	repo, linker := model.repo, model.linker
-	return func() tea.Msg {
+	return model, func() tea.Msg {
 		var msg loadedMsg
 		var err error
 
@@ -287,7 +291,7 @@ func (model Model) handleExecDone(msg execDoneMsg) (tea.Model, tea.Cmd) {
 		return model.pullExecDone(msg)
 	}
 
-	return model, model.reload()
+	return model.reload()
 }
 
 // keys for the castle picker screen.
@@ -309,8 +313,7 @@ func (model Model) handlePickerKey(key string) (tea.Model, tea.Cmd) {
 
 	case "enter":
 		model.selectCastle(model.pickerCursor)
-		model.loading = true
-		return model, model.reload()
+		return model.reload()
 
 	}
 
@@ -326,9 +329,8 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 		return model, tea.Quit
 
 	case "r":
-		model.loading = true
 		model.notice = ""
-		return model, model.reload()
+		return model.reload()
 
 	case "p":
 		model.screen = screenPush
