@@ -207,7 +207,7 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Make sure we refresh the diff if the "push" screen is open, so it always
 		// matches whatever file the cursor is on.
 		if model.screen == screenPush {
-			return model, model.diffCmd()
+			return model, model.loadDiff()
 		}
 
 		return model, nil
@@ -334,9 +334,9 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 		model.screen = screenPush
 		model.notice = ""
 		model.push.reconcile(model.groups)
-		// triggers the diffCmd right away so the user sees the diff for the first file
+		// triggers the diff load right away so the user sees the diff for the first file
 		// as soon as the screen loads, rather than having to move the cursor first.
-		return model, model.diffCmd()
+		return model, model.loadDiff()
 
 	case "u":
 		model.screen = screenPull
