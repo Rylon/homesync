@@ -112,7 +112,7 @@ type snapshot struct {
 	files       []git.FileStatus
 	actions     []link.Action
 	groups      fileGroups
-	health      linkSummary
+	health      link.Summary
 }
 
 // loadedMsg fires when the new snapshot has been built.
@@ -151,7 +151,7 @@ func (model Model) reload() (Model, tea.Cmd) {
 		}
 
 		msg.groups = groupFiles(msg.files)
-		msg.health = summariseLinks(msg.actions)
+		msg.health = link.Summarise(msg.actions)
 
 		return msg
 	}

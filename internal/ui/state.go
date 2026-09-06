@@ -2,7 +2,6 @@ package ui
 
 import (
 	"github.com/Rylon/homesync/internal/git"
-	"github.com/Rylon/homesync/internal/link"
 )
 
 // State deals with the current state of the castle vs home, so the UI can present
@@ -27,44 +26,6 @@ func groupFiles(files []git.FileStatus) fileGroups {
 	}
 
 	return groups
-}
-
-// linkSummary tallies a link plan so the dashboard, the relink screen and the
-// pull report can show the correct counts, rather than needing to reconstruct them
-// each time.
-type linkSummary struct {
-	Identical int
-	Missing   int
-	Conflicts int
-	Refused   int
-}
-
-// Problems counts how many of the changes require a human decision, such as conflicts.
-func (summary linkSummary) Problems() int {
-	return summary.Missing + summary.Conflicts + summary.Refused
-}
-
-// summariseLinks counts a plan grouped by each Kind,. We count both types of symlink
-// conflicts together, because the resolution is the same in both cases.
-func summariseLinks(actions []link.Action) linkSummary {
-	var summary linkSummary
-	for _, action := range actions {
-		switch action.Kind {
-
-		case link.Identical:
-			summary.Identical++
-
-		case link.Create:
-			summary.Missing++
-
-		case link.Conflict, link.SymlinkConflict:
-			summary.Conflicts++
-
-		case link.Refused:
-			summary.Refused++
-		}
-	}
-	return summary
 }
 
 // potentialPullBlockers are reasons that prevent us from running the `git pull` command, such as

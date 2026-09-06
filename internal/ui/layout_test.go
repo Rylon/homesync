@@ -38,7 +38,7 @@ func exampleCastleModel(width, height int) Model {
 		{Kind: link.Conflict, Rel: ".vimrc", Destination: "/home/u/.vimrc"},
 		{Kind: link.Refused, Rel: ".homesick/repos/dotfiles/stray", Reason: "destination is inside the castle at " + testCastle.Root},
 	}
-	model.health = summariseLinks(model.actions)
+	model.health = link.Summarise(model.actions)
 	model.push.reconcile(model.groups)
 	model.push.diff = strings.Repeat("diff --git a/home/.exampleapp/settings.json b/home/.exampleapp/settings.json\n+a fairly long added line that should be clipped to the pane\n", 12)
 	model.relink.reconcile(model.actions)

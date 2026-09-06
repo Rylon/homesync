@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/Rylon/homesync/internal/git"
-	"github.com/Rylon/homesync/internal/link"
 )
 
 func modified(path string) git.FileStatus {
@@ -64,55 +63,6 @@ func TestGroupOnCleanRepoIsEmpty(t *testing.T) {
 
 	if len(got.Changed) != 0 || len(got.New) != 0 {
 		t.Errorf("Group = %+v, want both empty", got)
-	}
-}
-
-func TestSummariseProperlyCountsEachKind(t *testing.T) {
-	got := summariseLinks([]link.Action{
-		{Kind: link.Identical},
-		{Kind: link.Identical},
-		{Kind: link.Create},
-		{Kind: link.Conflict},
-		{Kind: link.SymlinkConflict},
-		{Kind: link.Refused},
-	})
-
-	if got.Identical != 2 {
-		t.Errorf("Identical = %d, want 2", got.Identical)
-	}
-
-	if got.Missing != 1 {
-		t.Errorf("Missing = %d, want 1", got.Missing)
-	}
-
-	// Both conflict kinds are reported together.
-	if got.Conflicts != 2 {
-		t.Errorf("Conflicts = %d, want 2", got.Conflicts)
-	}
-
-	if got.Refused != 1 {
-		t.Errorf("Refused = %d, want 1", got.Refused)
-	}
-}
-
-func TestSummariseOnFullyLinkedCastleReportsNoProblems(t *testing.T) {
-	got := summariseLinks([]link.Action{{Kind: link.Identical}, {Kind: link.Identical}})
-
-	if got.Problems() != 0 {
-		t.Errorf("Problems = %d, want 0", got.Problems())
-	}
-}
-
-func TestSummariseProblemsCountsMissingAndConflicts(t *testing.T) {
-	got := summariseLinks([]link.Action{
-		{Kind: link.Identical},
-		{Kind: link.Create},
-		{Kind: link.Conflict},
-		{Kind: link.Refused},
-	})
-
-	if got.Problems() != 3 {
-		t.Errorf("Problems = %d, want 3", got.Problems())
 	}
 }
 
