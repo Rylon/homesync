@@ -72,6 +72,9 @@ func New(homeDir string, castles []castle.Castle) Model {
 }
 
 func (model *Model) selectCastle(index int) {
+	// Ensures the UI shows the loading state on first run, otherwise we'd get a blank dashboard.
+	model.loading = true
+
 	model.castle = model.castles[index]
 	model.repo = git.New(model.castle.Root)
 	model.subdirs, _ = castle.Subdirs(model.castle.Root)
@@ -90,7 +93,8 @@ func (model Model) Init() tea.Cmd {
 	if model.repo == nil {
 		return nil
 	}
-	// Init can only return a command, so the loading flag `reload` sets is discarded here.
+	// on startup we need to trigger a reload, so we get the reload command to run,
+	// and ignore the returned model, since Init only cares about the command to run.
 	_, cmd := model.reload()
 	return cmd
 }
