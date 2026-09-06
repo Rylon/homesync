@@ -69,7 +69,7 @@ func TestScreenResizingFitsVariousTerminalSizes(t *testing.T) {
 	}{
 		{"dashboard", func(model *Model) { model.screen = screenDashboard }},
 		{"push", func(model *Model) { model.screen = screenPush }},
-		{"push composing", func(model *Model) { model.screen = screenPush; model.push.mode = pushComposing }},
+		{"push composing", func(model *Model) { model.screen = screenPush; model.push.mode = pushComposingCommit }},
 		{"push problems", func(model *Model) {
 			model.screen = screenPush
 			model.push.mode = pushProblems
