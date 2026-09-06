@@ -180,7 +180,7 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// A pull runs in multiple stages, each one is handled by the pull.go state machine,
 	// keeping all the pull logic together.
-	case pullMarkedMsg, pullIncomingMsg, pullReportMsg, pullRelinkedMsg:
+	case pullIncomingMsg, pullReportMsg:
 		return model.updatePullMsg(msg)
 
 	case tea.WindowSizeMsg:

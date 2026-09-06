@@ -135,6 +135,8 @@ func (repo *Repo) ConflictedPaths() ([]string, error) {
 		return nil, err
 	}
 
+	// `-z` tells Git to skip quoting the output, and switches from newline
+	// to NUL (\x00) as a seperator for each file.
 	var paths []string
 	for _, path := range strings.Split(out, "\x00") {
 		if path != "" {

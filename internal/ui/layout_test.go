@@ -75,6 +75,22 @@ func TestScreenResizingFitsVariousTerminalSizes(t *testing.T) {
 			model.push.mode = pushProblems
 		}},
 		{"pull gate", func(model *Model) { model.screen = screenPull }},
+		{"pull preview", func(model *Model) {
+			model.screen = screenPull
+			model.pull.step = pullPreview
+			model.pull.incoming = []git.Commit{{Hash: "abc1234", Subject: "add .inputrc"}}
+		}},
+		{"pull conflicted", func(model *Model) {
+			model.screen = screenPull
+			model.pull.step = pullConflicted
+			model.pull.conflicts = []string{"home/.zshrc"}
+		}},
+		{"pull report", func(model *Model) {
+			model.screen = screenPull
+			model.pull.step = pullReport
+			model.pull.incoming = []git.Commit{{Hash: "abc1234", Subject: "add .inputrc"}}
+			model.pull.diffStat = strings.Repeat("home/.inputrc | 1 +\n", 3)
+		}},
 		{"relink", func(model *Model) { model.screen = screenRelink }},
 		{"relink confirm", func(model *Model) { model.screen = screenRelink; model.relink.confirm = true }},
 		{"picker", func(model *Model) { model.screen = screenPicker }},
