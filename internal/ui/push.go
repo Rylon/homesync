@@ -413,7 +413,11 @@ func (model Model) renderPushFileList(width, height int) string {
 		return okStyle.Render("nothing to commit")
 	}
 
-	lines := []string{headingStyle.Render("Files")}
+	// A heading costs two lines and a file one, so a row index is not a line index. Note where
+	// the cursor lands as we go, so the window below can keep it on screen.
+	cursorLine := 0
+	var lines []string
+
 	for index, row := range model.push.rows {
 
 		// headings don't need a cursor or checkboxes
@@ -438,19 +442,44 @@ func (model Model) renderPushFileList(width, height int) string {
 		if index == model.push.cursor {
 			marker = "> "
 			style = selectedStyle
+			cursorLine = len(lines)
 		}
 
 		label := trimLeft(row.file.Path, width-8)
 		lines = append(lines, marker+subtleStyle.Render(box)+" "+style.Render(label))
 	}
 
-	// make sure the filelist doesn't overflow the available height.
-	// TODO we should probably support scrolling the list here?
-	if len(lines) > height {
-		lines = lines[:height]
+	// The "Files" heading stays put and the list scrolls under it, so it costs one row.
+	visibleFiles := scrollingFileList(lines, cursorLine, height-1)
+
+	return lipgloss.JoinVertical(lipgloss.Left, append([]string{headingStyle.Render("Files")}, visibleFiles...)...)
+}
+
+// scrollWindow returns at most height lines, centred on the cursor line so it stays on screen
+// however far down the list it moves. Without this the list is cut off at the bottom, and the
+// cursor walks out of view while the spacebar still selects whatever it is sitting on.
+// scrollingFileList handles if the file list is bigger than the available height,
+// allowing the user to scroll through the list.
+func scrollingFileList(lines []string, cursorLine, height int) []string {
+	if height < 1 {
+		height = 1
+	}
+	if len(lines) <= height {
+		return lines
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+	// The viewport is centered on the cursor when possible, but the cursor is allowed to scroll
+	// to the very top/bottom of the list, so we don't end up with a lot of blank lines when
+	// reaching the outer ends of the list.
+	start := cursorLine - height/2
+	if start < 0 {
+		start = 0
+	}
+	if start > len(lines)-height {
+		start = len(lines) - height
+	}
+
+	return lines[start : start+height]
 }
 
 // renderPushDiff draws the diff for the highlighted file, or its contents when the file is
