@@ -12,7 +12,7 @@ import (
 
 func (model Model) viewDashboard() string {
 	if model.loading {
-		return subtleStyle.Render("reading castle…")
+		return subtleStyle.Render("reading castle...")
 	}
 
 	rows := []string{

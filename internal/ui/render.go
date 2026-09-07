@@ -79,7 +79,7 @@ func renderDiff(body string, width, height int) string {
 	if len(lines) > height {
 		// Spend one of the allotted rows on the marker, so the block is exactly
 		// `height` lines. Returning `height+1` would push the help row out of frame.
-		lines = append(lines[:height-1], subtleStyle.Render("… truncated to fit"))
+		lines = append(lines[:height-1], subtleStyle.Render("... truncated to fit"))
 	}
 
 	out := make([]string, 0, len(lines))
@@ -117,7 +117,7 @@ func trimRight(text string, width int) string {
 	if len(runes) > width-1 {
 		runes = runes[:width-1]
 	}
-	return string(runes) + "…"
+	return string(runes) + "..."
 }
 
 // trimLeft does the same as trimRight, but clips the start of a string, adding a `...` prefix.
@@ -129,7 +129,7 @@ func trimLeft(text string, width int) string {
 	if len(runes) > width-1 {
 		runes = runes[len(runes)-(width-1):]
 	}
-	return "…" + string(runes)
+	return "..." + string(runes)
 }
 
 const maxPreviewBytes = 64 * 1024
@@ -151,7 +151,7 @@ func readCapped(path string) (string, error) {
 
 	text := string(buf[:bytesRead])
 	if bytesRead == maxPreviewBytes {
-		text += "\n… truncated"
+		text += "\n... truncated"
 	}
 
 	return text, nil
