@@ -24,6 +24,10 @@ func newRepo(t *testing.T) *Repo {
 	return New(dir)
 }
 
+// mustGit runs a git command against `dir` which must succeed, or it fails the test.
+//
+// The `git` package has its own copy of this, but test helpers are not exported across packages,
+// so the ui tests need their own for setting up real repositories.
 func mustGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
