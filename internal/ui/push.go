@@ -88,40 +88,34 @@ func (state *pushState) reconcile(groups fileGroups) {
 // checkAndFixCursor is used after refreshing, and makes sure the cursor is still within
 // the row list, and is still pointing at an actual file, not a header like "CHANGED".
 func (state *pushState) checkAndFixCursor(direction int) {
-	for state.cursor >= 0 && state.cursor < len(state.rows) && state.rows[state.cursor].heading != "" {
+	state.cursor = clampCursor(state.cursor, len(state.rows))
+
+	for state.onHeading() {
 		state.cursor += direction
 	}
 
-	// If we go off the top or bottom of the row list, then we add/subtract one until we get back to
-	// a valid row.
-	if state.cursor < 0 {
-		state.cursor = 0
-		for state.cursor < len(state.rows) && state.rows[state.cursor].heading != "" {
-			state.cursor++
-		}
-	}
-	if state.cursor >= len(state.rows) {
-		state.cursor = len(state.rows) - 1
-		for state.cursor >= 0 && state.rows[state.cursor].heading != "" {
-			state.cursor--
+	// If we get past either the start or end of the list and find ourselves on a heading,
+	// we reverse direction to find the nearest non-heading row.
+	if state.cursor < 0 || state.cursor >= len(state.rows) {
+		state.cursor = clampCursor(state.cursor, len(state.rows))
+		for state.onHeading() {
+			state.cursor -= direction
 		}
 	}
 }
 
-// currentFile returns the file at the cursor position, guarding against some invalid positions.
-// (checkAndFixCursor should fix any invalid positions on refresh, but this runs in the render loop,
-// so we need to be certain).
+// onHeading reports whether the cursor is inside the list and on a heading row.
+func (state pushState) onHeading() bool {
+	return state.cursor >= 0 && state.cursor < len(state.rows) && state.rows[state.cursor].heading != ""
+}
+
+// currentFile returns the file under the cursor. `checkAndFixCursor` runs after every refresh
+// to ensure the cursor remains within the bounds of the list, and on an actual file row.
 func (state pushState) currentFile() (git.FileStatus, bool) {
-	// guard against being outside of the valid range (checkAndFixCursor fixes this when refreshing)
-	if state.cursor < 0 || state.cursor >= len(state.rows) {
+	if len(state.rows) == 0 {
 		return git.FileStatus{}, false
 	}
-	// guard against being on a heading row.
-	row := state.rows[state.cursor]
-	if row.heading != "" {
-		return git.FileStatus{}, false
-	}
-	return row.file, true
+	return state.rows[state.cursor].file, true
 }
 
 // selectedPaths builds a slice of the currently selected paths.
