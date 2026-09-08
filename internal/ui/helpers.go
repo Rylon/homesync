@@ -15,6 +15,17 @@ func plural(count int, word string) string {
 	return fmt.Sprintf("%d %ss", count, word)
 }
 
+// Used to ensure the cursor remains within the bounds of a list, as the list changes size.
+func clampCursor(cursor, count int) int {
+	if cursor >= count {
+		cursor = count - 1
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	return cursor
+}
+
 // tildePath renders paths within the $HOME folder shortened to ~, but returns
 // the path unmodified if it's outside $HOME.
 func (model Model) tildePath(path string) string {
