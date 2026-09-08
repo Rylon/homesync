@@ -92,7 +92,7 @@ func TestScreenResizingFitsVariousTerminalSizes(t *testing.T) {
 			model.pull.diffStat = strings.Repeat("home/.inputrc | 1 +\n", 3)
 		}},
 		{"links", func(model *Model) { model.screen = screenLinks }},
-		{"links confirm", func(model *Model) { model.screen = screenLinks; model.links.confirm = true }},
+		{"links confirmed", func(model *Model) { model.screen = screenLinks; model.links.confirmed = true }},
 		{"picker", func(model *Model) { model.screen = screenPicker }},
 	}
 
