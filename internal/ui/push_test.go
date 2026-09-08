@@ -36,7 +36,8 @@ func TestCheckAndFixCursorWorks(t *testing.T) {
 		{"on the first heading with no file above, takes the first file below", fileListWithTwoSections(), 0, -1, 1},
 		{"past the end, moves back to the last file", fileListWithTwoSections(), 99, 1, 3},
 		{"before the start, moves back to the first file", fileListWithTwoSections(), -5, 1, 1},
-		{"no rows at all, isn't visible", nil, 0, 1, -1},
+		{"no rows at all returns zero", nil, 0, 1, 0},
+		{"no rows at all returns zero when it was previously non-zero", nil, 7, 1, 0},
 	}
 
 	for _, testCase := range cases {
