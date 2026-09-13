@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# This script builds Homesync, and sets the version field, mirroring how GoReleaser would
+# set it. We set it to an older version, to simulate an outdated binary so we can test
+# the automatic updates flow (see also: ./scripts/test-release-server).
+#
+# Usage:
+# 1. Start the fake release server:
+#    ./scripts/test-release-server
+# 2. Run this script to build an outdated binary, and run it:
+#   ./scripts/build-old-version
+#
+
+set -euo pipefail
+
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+go build -ldflags "-X github.com/Rylon/homesync/internal/update.Version=0.0.1" -o "$TMPDIR/homesync" .
+HOMESYNC_UPDATE_SERVER=http://127.0.0.1:8321 "$TMPDIR/homesync"
+
+# Run again after quitting the first time, to show the update was applied.
+"$TMPDIR/homesync"

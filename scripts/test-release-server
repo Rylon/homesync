@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# This script sets up a local HTTP server which serves a fake GitHub Release, for testing
+# the full automatic updates flow. (see also: ./scripts/build-old-version).
+#
+# Usage:
+# 1. Start the fake release server:
+#    ./scripts/test-release-server
+# 2. Run this script to build an outdated binary, and run it:
+#   ./scripts/build-old-version
+#
+
+set -euo pipefail
+
+PORT=8321
+
+if ! ls dist/*.tar.gz >/dev/null 2>&1; then
+  echo "No archives in dist. Run: goreleaser release --snapshot --clean" >&2
+  exit 1
+fi
+
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+RELEASE="$TMPDIR/Rylon/homesync"
+mkdir -p "$RELEASE"
+cp dist/*.tar.gz dist/checksums.txt "$RELEASE/"
+
+COMMITS=$(git log --format='      * %s' -n 12)
+
+{
+  cat <<EOF
+releases:
+  - id: 1
+    tag_name: v9.9.9
+    url: https://github.com/Rylon/homesync/releases/tag/v9.9.9
+    published_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+    release_notes: |
+      ## Changelog
+$COMMITS
+    assets:
+EOF
+  ID=10
+  for archive in "$RELEASE"/*.tar.gz; do
+    NAME=$(basename "$archive")
+    printf '      - id: %d\n        name: %s\n        url: %s\n' "$ID" "$NAME" "$NAME"
+    ID=$((ID + 1))
+  done
+  printf '      - id: %d\n        name: checksums.txt\n        url: checksums.txt\n' "$ID"
+} >"$RELEASE/manifest.yaml"
+
+cat <<EOF
+Serving a fake v9.9.9 release on http://127.0.0.1:$PORT from $TMPDIR
+
+In another terminal, run the second test script to build an outdated binary,
+and point it at this fake update server.
+
+  ./scripts/build-old-version
+
+The dashboard should offer v9.9.9. Press U for the notes, then enter to install.
+Quit, and the new version you just installed should re-open and show no update available.
+
+Press ctrl+c here to stop serving.
+EOF
+
+python3 -m http.server "$PORT" --bind 127.0.0.1 -d "$TMPDIR"
