@@ -11,11 +11,22 @@ import (
 
 	"github.com/Rylon/homesync/internal/castle"
 	"github.com/Rylon/homesync/internal/ui"
+	"github.com/Rylon/homesync/internal/update"
 )
+
+// The actual version is set by GoReleaser, using `-ldflags`, but a plain `go build` will mark this as a Dev build
+// and disable automatic updates.
+var version = update.DevVersion
 
 func main() {
 	reposFlag := flag.String("repos", "", "castle directory (default ~/.homesick/repos)")
+	versionFlag := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Println("homesync", version)
+		return
+	}
 
 	if err := run(*reposFlag); err != nil {
 		fmt.Fprintln(os.Stderr, "homesync:", err)
@@ -43,6 +54,12 @@ func run(reposDir string) error {
 	}
 
 	// Then run Bubble Tea to handle the rest of the UI :)
-	_, err = tea.NewProgram(ui.New(homeDir, castles)).Run()
+	checker := update.Checker{
+		Version: version,
+		// Used only for testing the automatic updates process with a local server.
+		ServerURL: os.Getenv("HOMESYNC_UPDATE_SERVER"),
+	}
+
+	_, err = tea.NewProgram(ui.New(homeDir, castles, checker)).Run()
 	return err
 }
