@@ -75,12 +75,7 @@ func renderDiff(body string, width, height int) string {
 		height = 1
 	}
 
-	lines := strings.Split(strings.TrimRight(body, "\n"), "\n")
-	if len(lines) > height {
-		// Spend one of the allotted rows on the marker, so the block is exactly
-		// `height` lines. Returning `height+1` would push the help row out of frame.
-		lines = append(lines[:height-1], subtleStyle.Render("... truncated to fit"))
-	}
+	lines := truncateLines(strings.Split(strings.TrimRight(body, "\n"), "\n"), height)
 
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
@@ -88,6 +83,19 @@ func renderDiff(body string, width, height int) string {
 	}
 
 	return strings.Join(out, "\n")
+}
+
+// truncateLines caps a block at `height` rows. It spends one of the allotted rows on the
+// marker, so the block is exactly `height` lines. Returning `height+1` would push the help
+// row out of frame.
+func truncateLines(lines []string, height int) []string {
+	if height < 1 {
+		height = 1
+	}
+	if len(lines) <= height {
+		return lines
+	}
+	return append(lines[:height-1], subtleStyle.Render("... truncated to fit"))
 }
 
 // Sets the correct colour to use for each line of the diff, depending on what changed.
