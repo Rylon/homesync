@@ -1,0 +1,46 @@
+---
+# GoRelease handles compiling Go binaries for multiple architectures, and creating GitHub
+# Releases for them.
+#
+# We use this to offer automatic updates for homesync.
+
+version: 2
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    # The in-app update check compares this against the newest release tag.
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  # Since we show the changelog within the app, we change the format to only show the short message,
+  # and not include the hashes.
+  format: "{{ .Message }}"
+  filters:
+    exclude:
+      - "^Merge "
+
+release:
+  github:
+    owner: Rylon
+    name: homesync
+  # The release is marked as a draft, allowing time for a final review of the release notes, before
+  # publishing.
+  draft: true

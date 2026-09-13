@@ -1,2 +1,5 @@
 # Don't commit the compiled binary.
 /homesync
+
+# Or the GoReleaser output.
+/dist/
