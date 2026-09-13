@@ -17,7 +17,7 @@ builds:
       - arm64
     # The in-app update check compares this against the newest release tag.
     ldflags:
-      - -s -w -X main.version={{ .Version }}
+      - -s -w -X github.com/Rylon/homesync/internal/update.Version={{ .Version }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
