@@ -122,7 +122,7 @@ func TestLatestOnlyOffersAStrictlyNewerRelease(t *testing.T) {
 		{"same version shows nothing", "v0.2.0", "0.2.0", false},
 		{"newer build also shows nothing", "v0.2.0", "0.3.0", false},
 		{"make sure the semvar pieces are compared numerically - 1", "v0.9.10", "0.9.9", true},
-		{"make sure the semvar pieces are compared numerically - 2", "v0.10.10", "0.11.12", true},
+		{"make sure the semvar pieces are compared numerically - 2", "v0.11.12", "0.10.11", true},
 	}
 
 	for _, testCase := range cases {
