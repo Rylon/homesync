@@ -27,9 +27,22 @@ func (model Model) viewDashboard() string {
 		menuItem("u", "pull", "fetch, integrate and relink"),
 		menuItem("l", "links", "create symlinks from castle to $HOME"),
 		"",
-		model.help([2]string{"r", "refresh"}, [2]string{"q", "quit"}),
+		rowFit("Version", model.versionText(), model.contentWidth()),
+		"",
+		model.help(model.dashboardHelp()...),
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+}
+
+// The update key is only advertised while there is a release waiting to be installed.
+func (model Model) dashboardHelp() [][2]string {
+	pairs := [][2]string{{"r", "refresh"}}
+
+	if model.update.available && !model.update.applying && !model.update.applied {
+		pairs = append(pairs, [2]string{"U", "update homesync"})
+	}
+
+	return append(pairs, [2]string{"q", "quit"})
 }
 
 // rowFit renders a label and its value. We trim the values to ensure the row stays within
