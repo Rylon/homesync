@@ -153,7 +153,7 @@ func (model Model) viewUpdate() string {
 	}
 
 	header := []string{
-		headingStyle.Render("Update is available"),
+		headingStyle.Render("Update is available!"),
 		"",
 		trimRight(versionLine, width),
 		"",
