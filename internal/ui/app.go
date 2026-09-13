@@ -10,6 +10,7 @@ import (
 	"github.com/Rylon/homesync/internal/castle"
 	"github.com/Rylon/homesync/internal/git"
 	"github.com/Rylon/homesync/internal/link"
+	"github.com/Rylon/homesync/internal/update"
 )
 
 type screen int
@@ -19,6 +20,7 @@ const (
 	screenPush
 	screenPull
 	screenLinks
+	screenUpdate
 	screenPicker
 )
 
@@ -50,17 +52,20 @@ type Model struct {
 	push  pushState
 	pull  pullState
 	links linksState
+
+	checker update.Checker
+	update  updateState
 }
 
 // New builds the root Model for all the castles on a system, prompting the user to choose
 // if they have more than one, or loading straight in if there's only one.
-func New(homeDir string, castles []castle.Castle) Model {
+func New(homeDir string, castles []castle.Castle, checker update.Checker) Model {
 	roots := make([]string, len(castles))
 	for index, castleEntry := range castles {
 		roots[index] = castleEntry.Root
 	}
 
-	model := Model{homeDir: homeDir, castles: castles, roots: roots}
+	model := Model{homeDir: homeDir, castles: castles, roots: roots, checker: checker}
 
 	if len(castles) == 1 {
 		model.selectCastle(0)
@@ -95,8 +100,9 @@ func (model Model) Init() tea.Cmd {
 	}
 	// on startup we need to trigger a reload, so we get the reload command to run,
 	// and ignore the returned model, since Init only cares about the command to run.
+	// We return that, and the update check command as a batch.
 	_, cmd := model.reload()
-	return cmd
+	return tea.Batch(cmd, model.checkForUpdate())
 }
 
 // When Bubble Tea calls `Update`, it will be given a `loadedMsg` with a fresh snapshot
@@ -182,6 +188,10 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// keeping all the pull logic together.
 	case pullIncomingMsg, pullReportMsg:
 		return model.updatePullMsg(msg)
+
+	// Results of the automatic updates.
+	case updateCheckedMsg, updateAppliedMsg:
+		return model.handleUpdateMsg(msg)
 
 	case tea.WindowSizeMsg:
 		// Used to adjust the window sizes, for example the split when a diff is being shown,
@@ -280,6 +290,8 @@ func (model Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return model.handlePullKey(key)
 	case screenLinks:
 		return model.handleLinksKey(key)
+	case screenUpdate:
+		return model.handleUpdateKey(key)
 	}
 
 	return model, nil
@@ -355,6 +367,13 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 		model.notice = ""
 		model.links.reconcile(model.actions)
 		return model, nil
+
+	case "U":
+		if model.update.available {
+			model.screen = screenUpdate
+			model.notice = ""
+		}
+		return model, nil
 	}
 
 	return model, nil
@@ -386,6 +405,9 @@ func (model Model) View() tea.View {
 
 	case screenLinks:
 		body = model.viewLinks()
+
+	case screenUpdate:
+		body = model.viewUpdate()
 
 	}
 
