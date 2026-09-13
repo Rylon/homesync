@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/Rylon/homesync/internal/castle"
 	"github.com/Rylon/homesync/internal/git"
 	"github.com/Rylon/homesync/internal/link"
+	"github.com/Rylon/homesync/internal/update"
 )
 
 // a representative castle with some sample files and links, to test the layout.
@@ -24,6 +26,7 @@ func exampleCastleModel(width, height int) Model {
 		roots:   []string{testCastle.Root},
 		branch:  "main",
 		remote:  "git@github.com:example/dotfiles.git",
+		checker: update.Checker{Version: "0.1.0"},
 	}
 	model.width, model.height = width, height
 	model.files = []git.FileStatus{
@@ -68,6 +71,40 @@ func TestScreenResizingFitsVariousTerminalSizes(t *testing.T) {
 		setup func(*Model)
 	}{
 		{"dashboard", func(model *Model) { model.screen = screenDashboard }},
+		{"dashboard update available", func(model *Model) {
+			model.screen = screenDashboard
+			model.update = updateState{checked: true, available: true, release: update.Release{Version: "0.2.0"}}
+		}},
+		{"dashboard update failed", func(model *Model) {
+			model.screen = screenDashboard
+			model.update = updateState{checked: true, available: true, release: update.Release{Version: "0.2.0"},
+				err: errors.New("failed to download a release file from https://github.com/Rylon/homesync/releases/download/v0.2.0/homesync_0.2.0_darwin_arm64.tar.gz: HTTP 503")}
+		}},
+		{"update", func(model *Model) {
+			model.screen = screenUpdate
+			model.update = updateState{checked: true, available: true, release: update.Release{
+				Version: "0.2.0",
+				URL:     "https://github.com/Rylon/homesync/releases/tag/v0.2.0",
+				Notes:   "## Changelog\n" + strings.Repeat("* A change with a fairly long summary line that should be clipped to the terminal width\n", 30),
+			}}
+		}},
+		{"update without notes", func(model *Model) {
+			model.screen = screenUpdate
+			model.update = updateState{checked: true, available: true, release: update.Release{Version: "0.2.0"}}
+		}},
+		{"update installed", func(model *Model) {
+			model.screen = screenUpdate
+			model.update = updateState{checked: true, available: true, applied: true, release: update.Release{Version: "0.2.0", Notes: "* one change"}}
+		}},
+		{"update failed", func(model *Model) {
+			model.screen = screenUpdate
+			model.update = updateState{checked: true, available: true, release: update.Release{Version: "0.2.0"},
+				err: errors.New("failed to download a release file from https://github.com/Rylon/homesync/releases/download/v0.2.0/homesync_0.2.0_darwin_arm64.tar.gz: HTTP 503")}
+		}},
+		{"dashboard dev build", func(model *Model) {
+			model.screen = screenDashboard
+			model.checker = update.Checker{Version: "dev"}
+		}},
 		{"push", func(model *Model) { model.screen = screenPush }},
 		{"push composing", func(model *Model) { model.screen = screenPush; model.push.mode = pushComposingCommit }},
 		{"push problems", func(model *Model) {
