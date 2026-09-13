@@ -164,7 +164,7 @@ func (model Model) viewUpdate() string {
 	switch {
 	case state.applied:
 		footer = append(footer,
-			okStyle.Render(trimRight(latestVersion+" installed, restart to apply.", width)),
+			okStyle.Render(trimRight(latestVersion+" installed, restart to apply changes.", width)),
 			"",
 			model.help([2]string{"esc", "back"}),
 		)
