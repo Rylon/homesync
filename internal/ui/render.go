@@ -117,15 +117,12 @@ func styleDiffLine(line string, width int) string {
 }
 
 // trimRight clips the end of a string to a given width, adding a `...` suffix.
+// We need to also handle any ANSI control characters that may be present.
 func trimRight(text string, width int) string {
 	if width <= 1 || lipgloss.Width(text) <= width {
 		return text
 	}
-	runes := []rune(text)
-	if len(runes) > width-1 {
-		runes = runes[:width-1]
-	}
-	return string(runes) + "..."
+	return ansi.Truncate(text, width, "...")
 }
 
 // trimLeft does the same as trimRight, but clips the start of a string, adding a `...` prefix.
@@ -133,11 +130,9 @@ func trimLeft(text string, width int) string {
 	if width <= 1 || lipgloss.Width(text) <= width {
 		return text
 	}
-	runes := []rune(text)
-	if len(runes) > width-1 {
-		runes = runes[len(runes)-(width-1):]
-	}
-	return "..." + string(runes)
+	// TruncateLeft removes a count of columns rather than keeping one, so work out how many
+	// have to go for the prefix and the remainder to fit.
+	return ansi.TruncateLeft(text, lipgloss.Width(text)-width+len("..."), "...")
 }
 
 const maxPreviewBytes = 64 * 1024
