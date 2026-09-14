@@ -18,6 +18,36 @@ It allows you to review your local changes, commit them, push them, see pending 
 
 Homesync shells out to your native Git binary for interacting with the castle repo, so any config you have in place for commit signing, SSH keys, and so on, should Just Work™.
 
+## Installing
+
+Download the latest archive for your platform from the [releases page](https://github.com/Rylon/homesync/releases/latest), extract it, then move the `homesync` onto your `$PATH`, for example on an Apple Silicon Mac:
+
+```sh
+tar -xzf homesync_*_darwin_arm64.tar.gz
+sudo mv homesync /usr/local/bin/
+homesync -version
+```
+
+Archives are published for macOS and Linux, on both `amd64` and `arm64` architectures.
+
+> [!NOTE]
+> Homesync is not currently notarised by Apple, so you will see a warning from macOS when you try to run it for the first time:
+>
+> ![Homesync screenshot](quarantine.png)
+>To fix this, you can remove the quarantine flag after installing, like so:
+>
+>    ```sh
+>    xattr -d com.apple.quarantine /usr/local/bin/homesync
+>    ```
+
+You're also welcome to download the source and compile it for yourself, see the [Local development](#local-development) section below for how to do that.
+
+### Automatic updates
+
+Homesync automatically checks for updates on launch. When new versions are available, you'll be able to read the changelog and apply the update from within the app.
+
+Note: automatic updates are disabled when building from source.
+
 ## Local development
 
 You need [Homebrew](https://brew.sh), and Go 1.27.0 or newer:
