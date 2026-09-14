@@ -37,6 +37,8 @@ releases:
     published_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
     release_notes: |
       ## Changelog
+      This is a test release with some fake release notes,
+      with multiple lines for testing, here's what's new:
 $COMMITS
     assets:
 EOF
