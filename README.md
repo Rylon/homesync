@@ -68,6 +68,22 @@ The test suite builds a fake $HOME and fake castle to test the behaviour properl
 go test ./...
 ```
 
+### Releasing
+
+GoReleaser handles creating new GitHub Releases automatically when pushing a new version tag, like so:
+
+```sh
+git tag -a v0.0.1 -m "New release!"
+git push origin v0.0.1
+```
+
+You can also perform a snapshot build locally, which will compile everything, and write to `./dist/` for you to inspect.
+
+```sh
+brew install goreleaser
+goreleaser release --snapshot --clean
+```
+
 ## Known issues
 
 ### iTerm2: alternate screen mode scrollback
