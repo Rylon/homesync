@@ -33,14 +33,15 @@ Archives are published for macOS and Linux, on both `amd64` and `arm64` architec
 > [!NOTE]
 > Homesync is not currently notarised by Apple, so you will see a warning from macOS when you try to run it for the first time:
 >
-> ![Homesync screenshot](quarantine.png)
->To fix this, you can remove the quarantine flag after installing, like so:
+> <img src="quarantine.png" width="306" alt="macOS dialog: homesync Not Opened. Apple could not verify homesync is free of malware.">
+>
+> To fix this, you can remove the quarantine flag after installing, like so:
 >
 >    ```sh
 >    xattr -d com.apple.quarantine /usr/local/bin/homesync
 >    ```
 
-You're also welcome to download the source and compile it for yourself, see the [Local development](#local-development) section below for how to do that.
+You're also welcome to download the source and compile it for yourself, see the [Local Development](#local-development) section below for instructions.
 
 ### Automatic updates
 
