@@ -24,6 +24,11 @@ archives:
   - formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # This ensures nothing other than the binary gets included in the archive,
+    # otherwise by default GoReleaser wants to include README and LICENSE.
+    # See: https://goreleaser.com/customization/archive/
+    files:
+      - none*
 
 checksum:
   name_template: checksums.txt
