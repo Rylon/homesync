@@ -20,26 +20,32 @@ Homesync shells out to your native Git binary for interacting with the castle re
 
 ## Installing
 
-Download the latest archive for your platform from the [releases page](https://github.com/Rylon/homesync/releases/latest), extract it, then move the `homesync` onto your `$PATH`, for example on an Apple Silicon Mac:
+Download the latest archive for your platform from the [releases page](https://github.com/Rylon/homesync/releases/latest), extract it, then move the `homesync` binary into a folder on your `$PATH`:
 
 ```sh
+mkdir -p ~/.local/bin
 tar -xzf homesync_*_darwin_arm64.tar.gz
-sudo mv homesync /usr/local/bin/
-homesync -version
+mv homesync ~/.local/bin/
 ```
 
-Archives are published for macOS and Linux, on both `amd64` and `arm64` architectures.
-
 > [!NOTE]
-> Homesync is not currently notarised by Apple, so you will see a warning from macOS when you try to run it for the first time:
+> macOS does not add `~/.local/bin` to your `$PATH` by default, so fix that like so:
+>
+>    ```sh
+>    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
+>    ```
+>
+> Homesync is also not currently notarised by Apple, so you will see a warning from macOS when you try to run it:
 >
 > <img src="quarantine.png" width="306" alt="macOS dialog: homesync Not Opened. Apple could not verify homesync is free of malware.">
 >
-> To fix this, you can remove the quarantine flag after installing, like so:
+> To fix this, you can remove the quarantine flag, like so:
 >
->    ```sh
->    xattr -d com.apple.quarantine /usr/local/bin/homesync
->    ```
+> ```sh
+> xattr -d com.apple.quarantine ~/.local/bin homesync
+> ```
+
+Archives are published for macOS and Linux, on both `amd64` and `arm64` architectures.
 
 You're also welcome to download the source and compile it for yourself, see the [Local Development](#local-development) section below for instructions.
 
