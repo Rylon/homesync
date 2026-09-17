@@ -27,16 +27,13 @@ Download the latest archive for your platform from the [releases page](https://g
 ```sh
 mkdir -p ~/.local/bin
 tar -xf ~/Downloads/homesync_*_darwin_arm64.tar* -C ~/.local/bin homesync
+
+# Ensure ~/.local/bin is on your $PATH.
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 ```
 
 > [!NOTE]
-> macOS does not add `~/.local/bin` to your `$PATH` by default, so fix that like so:
->
->    ```sh
->    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
->    ```
->
-> Homesync is also not currently notarised by Apple, so you will see a warning from macOS when you try to run it:
+> Homesync is not currently notarised by Apple, so you will see a warning from macOS when you try to run it:
 >
 > <img src="quarantine.png" width="306" alt="macOS dialog: homesync Not Opened. Apple could not verify homesync is free of malware.">
 >
