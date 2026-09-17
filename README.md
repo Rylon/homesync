@@ -28,7 +28,7 @@ Download the latest archive for your platform from the [releases page](https://g
 mkdir -p ~/.local/bin
 tar -xf ~/Downloads/homesync_*_darwin_arm64.tar* -C ~/.local/bin homesync
 
-# Ensure ~/.local/bin is on your $PATH.
+# Ensures ~/.local/bin is on your $PATH, restart your shell to apply!
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 ```
 
