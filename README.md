@@ -30,6 +30,9 @@ tar -xf ~/Downloads/homesync_*_darwin_arm64.tar* -C ~/.local/bin homesync
 
 # Ensures ~/.local/bin is on your $PATH, restart your shell to apply!
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
+
+# Remove the quarantine flag for Apple Gatekeeper (see the note below).
+xattr -d com.apple.quarantine ~/.local/bin/homesync
 ```
 
 > [!NOTE]
@@ -40,7 +43,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 > To fix this, you can remove the quarantine flag, like so:
 >
 > ```sh
-> xattr -d com.apple.quarantine ~/.local/bin homesync
+> xattr -d com.apple.quarantine ~/.local/bin/homesync
 > ```
 
 Archives are published for macOS and Linux, on both `amd64` and `arm64` architectures.
