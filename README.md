@@ -10,9 +10,11 @@ The files live inside the Git repo (the "castle"), and are symlinked into the co
 
 ### Feature parity
 
-* Homesync has support for the following Homesick commands: `pull`, `commit`, `push`, `link`, `list`, `status`, `diff` and `show_path`.
+* Homesync has support for the following Homesick commands: `pull`, `commit`, `push`, `link`, `list`, `status`, and `diff`.
 
-* It does not yet implement: `track`, `clone`, `generate`, `destroy`, `rc`, `open`, `exec` or `cd`.
+* It does not yet implement: `track`, `unlink`, `clone`, `generate`, `destroy`, `rc`, `open`, `exec`, `exec_all`, `show_path` or `cd`.
+
+* There is also no onboarding yet - Homesync expects to find an existing castle on your machine.
 
 * Homesync also runs basic validation of `.sh` and `.json` files, to prevent you from inadvertently pushing then pulling a malformed config file to another device.
 
