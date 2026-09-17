@@ -26,8 +26,7 @@ Download the latest archive for your platform from the [releases page](https://g
 
 ```sh
 mkdir -p ~/.local/bin
-tar -xzf homesync_*_darwin_arm64.tar.gz
-mv homesync ~/.local/bin/
+tar -xf ~/Downloads/homesync_*_darwin_arm64.tar* -C ~/.local/bin homesync
 ```
 
 > [!NOTE]
