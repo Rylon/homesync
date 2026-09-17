@@ -1,10 +1,12 @@
 # homesync
 
-Homesync is a TUI for managing [Homesick](https://github.com/technicalpickles/homesick), a tool for syncing your dotfiles between computers using a Git repository (called a castle in Homesick terms) for tracking history.
+Homesync is a command line app for managing your dotfiles. It keeps them in a Git repository, so you can sync them between computers, see the history of every change, and always have a backup.
 
-## What it does
+It is inspired by and compatible with the excellent Ruby gem [Homesick](https://github.com/technicalpickles/homesick), and uses the same layout and config. Homesick calls the Git repo a "castle", so Homesync uses the same terminology.
 
-It allows you to review your local changes, commit them, push them, see pending changes from origin, and pull them. It also handles linking files from the castle back to your $HOME directory, and dealing with any conflicts.
+## How does it work?
+
+The files live inside the Git repo (the "castle"), and are symlinked into the correct location in your $HOME folder. Homesync then allows you to commit and push local changes, pull upstream changes from origin, and keeps the symlinks up to date.
 
 ### Feature parity
 
@@ -12,7 +14,7 @@ It allows you to review your local changes, commit them, push them, see pending 
 
 * It does not yet implement: `track`, `clone`, `generate`, `destroy`, `rc`, `open`, `exec` or `cd`.
 
-* Homesync also runs basic validation of `.sh` and `.json` files, as those are common dotfile types, and this prevents broken config files from being inadvertently pushed/pulled to another device.
+* Homesync also runs basic validation of `.sh` and `.json` files, to prevent you from inadvertently pushing then pulling a malformed config file to another device.
 
 ### Git config
 
