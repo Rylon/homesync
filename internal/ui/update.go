@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/Rylon/homesync/internal/update"
 )
@@ -208,25 +209,47 @@ func (model Model) viewUpdate() string {
 // GoReleaser writes these as Markdown, with a `## Changelog` heading, and a list of bullet points
 // for each commit, so we do some basic conversion here.
 func renderReleaseNotes(notes string, width, height int) []string {
+	// Normalise line-endings to just LF, as GitHub appears to store release notes with CRLF
+	// and that messes up the terminal.
+	notes = strings.ReplaceAll(notes, "\r\n", "\n")
+	notes = strings.ReplaceAll(notes, "\r", "")
 	notes = strings.TrimSpace(notes)
 	if notes == "" {
 		return []string{subtleStyle.Render("No release notes were published.")}
 	}
 
-	lines := truncateLines(strings.Split(notes, "\n"), height)
+	bullet := subtleStyle.Render("  • ")
+	indent := strings.Repeat(" ", lipgloss.Width(bullet))
 
-	out := make([]string, 0, len(lines))
-	for _, line := range lines {
+	var out []string
+	for _, line := range strings.Split(notes, "\n") {
 		switch {
 		case strings.HasPrefix(line, "#"):
-			out = append(out, headingStyle.Render(trimRight(strings.TrimLeft(line, "# "), width)))
+			out = append(out, wrapBlock(strings.TrimLeft(line, "# "), width, "", "", headingStyle)...)
 
 		case strings.HasPrefix(line, "* "), strings.HasPrefix(line, "- "):
-			out = append(out, trimRight(subtleStyle.Render("  • ")+valueStyle.Render(line[2:]), width))
+			out = append(out, wrapBlock(line[2:], width, bullet, indent, valueStyle)...)
 
 		default:
-			out = append(out, valueStyle.Render(trimRight(line, width)))
+			out = append(out, wrapBlock(line, width, "", "", valueStyle)...)
 		}
+	}
+
+	return truncateLines(out, height)
+}
+
+// wrapBlock wraps one paragraph of plain text to fit the terminal width, rather than truncating each line.
+func wrapBlock(text string, width int, firstPrefix, restPrefix string, style lipgloss.Style) []string {
+	available := max(width-lipgloss.Width(firstPrefix), 1)
+
+	lines := strings.Split(ansi.Wrap(text, available, ""), "\n")
+	out := make([]string, 0, len(lines))
+	for index, line := range lines {
+		prefix := restPrefix
+		if index == 0 {
+			prefix = firstPrefix
+		}
+		out = append(out, trimRight(prefix+style.Render(line), width))
 	}
 
 	return out

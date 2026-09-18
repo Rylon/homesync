@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/Rylon/homesync/internal/update"
 )
 
@@ -163,5 +166,100 @@ func TestRenderReleaseNotesHandlesMarkdownAndLength(t *testing.T) {
 
 	if got := renderReleaseNotes(strings.Repeat("line\n", 30), 80, 5); len(got) != 5 || !strings.Contains(got[4], "truncated") {
 		t.Errorf("long notes were not capped at 5 lines with a marker:\n%s", strings.Join(got, "\n"))
+	}
+}
+
+func TestRenderReleaseNotesWrapsLongLinesInsteadOfTruncating(t *testing.T) {
+	long := "This is a very long line in a fake set of release notes, which is used to test that word-wrapping works properly, rather than each line being truncated."
+	notes := long + "\n\n* " + long + "\n"
+
+	got := renderReleaseNotes(notes, 60, 40)
+
+	joined := strings.Join(got, "\n")
+	if strings.Contains(joined, "...") {
+		t.Errorf("notes were truncated instead of wrapped:\n%s", joined)
+	}
+	for _, line := range got {
+		if width := lipgloss.Width(line); width > 60 {
+			t.Errorf("line is %d wide, wider than 60: %q", width, line)
+		}
+	}
+	plain := ansi.Strip(joined)
+	for _, word := range strings.Fields(long) {
+		if !strings.Contains(plain, word) {
+			t.Errorf("wrapped notes lost the word %q:\n%s", word, plain)
+		}
+	}
+
+	// The bullet points continuation lines line up with the text after the bullet, so wrapped
+	// bullets read as one item.
+	var bulletIndex int
+	for index, line := range got {
+		if strings.Contains(line, "•") {
+			bulletIndex = index
+		}
+	}
+	if bulletIndex == 0 || bulletIndex == len(got)-1 {
+		t.Fatalf("expected a wrapped bullet with a continuation line:\n%s", plain)
+	}
+	continuation := ansi.Strip(got[bulletIndex+1])
+	if !strings.HasPrefix(continuation, "    ") || strings.HasPrefix(continuation, "     ") {
+		t.Errorf("bullet continuation should be indented by four spaces: %q", continuation)
+	}
+	if strings.Contains(continuation, "•") {
+		t.Errorf("bullet continuation should not repeat the bullet: %q", continuation)
+	}
+}
+
+func TestRenderReleaseNotesCapsHeightAfterWrapping(t *testing.T) {
+	long := strings.Repeat("word ", 40)
+
+	got := renderReleaseNotes(long, 40, 3)
+
+	if len(got) != 3 || !strings.Contains(got[2], "truncated") {
+		t.Errorf("wrapped notes were not capped at 3 lines with a marker:\n%s", strings.Join(got, "\n"))
+	}
+}
+
+func TestRenderReleaseNotesBreaksUnbreakableTokens(t *testing.T) {
+	url := "https://github.com/Rylon/homesync/releases/tag/v0.9.0/some/very/long/path/that/keeps/going"
+
+	got := renderReleaseNotes(url, 30, 10)
+
+	if len(got) < 2 {
+		t.Fatalf("long URL should hard wrap onto several lines, got %d:\n%s", len(got), strings.Join(got, "\n"))
+	}
+	if strings.Join(ansiStripAll(got), "") != url {
+		t.Errorf("hard wrapping lost characters from the URL:\n%s", strings.Join(got, "\n"))
+	}
+}
+
+func ansiStripAll(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		out = append(out, ansi.Strip(line))
+	}
+	return out
+}
+
+func TestRenderReleaseNotesNormalisesWindowsLineEndings(t *testing.T) {
+	// GitHub stores release bodies with CRLF line endings. A stray carriage return in a
+	// rendered line makes the terminal renderer return to column zero, so the trailing
+	// padding overwrites the start of the line.
+	notes := "First paragraph that is long enough to wrap onto a second line when rendered.\r\n\r\n* A bullet point.\r\n"
+
+	got := renderReleaseNotes(notes, 50, 20)
+
+	for _, line := range got {
+		if strings.Contains(line, "\r") {
+			t.Errorf("rendered line still contains a carriage return: %q", line)
+		}
+	}
+	plain := ansi.Strip(strings.Join(got, "\n"))
+	if !strings.Contains(plain, "second line when rendered.") || !strings.Contains(plain, "A bullet point.") {
+		t.Errorf("notes lost content:\n%s", plain)
+	}
+	if len(got) != 4 {
+		t.Errorf("expected 4 lines (two wrapped, blank, bullet), got %d:\n%s", len(got), plain)
 	}
 }
