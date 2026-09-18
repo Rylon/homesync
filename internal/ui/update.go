@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/Rylon/homesync/internal/update"
 )
@@ -160,7 +159,7 @@ func (model Model) viewUpdate() string {
 		"",
 	}
 
-	footer := []string{"", subtleStyle.Render(trimRight(state.release.URL, width)), ""}
+	footer := []string{"", subtleStyle.Hyperlink(state.release.URL).Render(trimRight(state.release.URL, width)), ""}
 
 	switch {
 	case state.applied:
@@ -205,9 +204,8 @@ func (model Model) viewUpdate() string {
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
-// renderReleaseNotes formats the release notes from the body of the GitHub Release.
-// GoReleaser writes these as Markdown, with a `## Changelog` heading, and a list of bullet points
-// for each commit, so we do some basic conversion here.
+// renderReleaseNotes formats the release notes from the body of the GitHub Release,
+// which is expected to be written in Markdown.
 func renderReleaseNotes(notes string, width, height int) []string {
 	// Normalise line-endings to just LF, as GitHub appears to store release notes with CRLF
 	// and that messes up the terminal.
@@ -218,39 +216,5 @@ func renderReleaseNotes(notes string, width, height int) []string {
 		return []string{subtleStyle.Render("No release notes were published.")}
 	}
 
-	bullet := subtleStyle.Render("  • ")
-	indent := strings.Repeat(" ", lipgloss.Width(bullet))
-
-	var out []string
-	for _, line := range strings.Split(notes, "\n") {
-		switch {
-		case strings.HasPrefix(line, "#"):
-			out = append(out, wrapBlock(strings.TrimLeft(line, "# "), width, "", "", headingStyle)...)
-
-		case strings.HasPrefix(line, "* "), strings.HasPrefix(line, "- "):
-			out = append(out, wrapBlock(line[2:], width, bullet, indent, valueStyle)...)
-
-		default:
-			out = append(out, wrapBlock(line, width, "", "", valueStyle)...)
-		}
-	}
-
-	return truncateLines(out, height)
-}
-
-// wrapBlock wraps one paragraph of plain text to fit the terminal width, rather than truncating each line.
-func wrapBlock(text string, width int, firstPrefix, restPrefix string, style lipgloss.Style) []string {
-	available := max(width-lipgloss.Width(firstPrefix), 1)
-
-	lines := strings.Split(ansi.Wrap(text, available, ""), "\n")
-	out := make([]string, 0, len(lines))
-	for index, line := range lines {
-		prefix := restPrefix
-		if index == 0 {
-			prefix = firstPrefix
-		}
-		out = append(out, trimRight(prefix+style.Render(line), width))
-	}
-
-	return out
+	return truncateLines(renderMarkdown(notes, width), height)
 }

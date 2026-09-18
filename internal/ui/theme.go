@@ -41,6 +41,7 @@ var (
 	keyStyle      = lipgloss.NewStyle().Bold(true).Foreground(colAccent)
 	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colFg)
 	headingStyle  = lipgloss.NewStyle().Bold(true).Foreground(colMuted)
+	linkStyle     = lipgloss.NewStyle().Underline(true).Foreground(colAccent)
 	dividerStyle  = lipgloss.NewStyle().Foreground(colMuted)
 )
 
