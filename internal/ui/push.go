@@ -237,14 +237,16 @@ func (model Model) loadDiff() tea.Cmd {
 	abs := model.absPath(file.Path)
 
 	return func() tea.Msg {
-		if file.IsBinary {
-			return diffMsg{path: file.Path, body: valueStyle.Render("N/A (Binary file)"), err: nil}
-		}
 
-		// untracked files have no diff, so we just read the file contents, capped to 64KB.
+		// untracked files can't have a Git diff, so we just read the file contents, capped to 64KB
+		// (unless the file is binary which would produce a meaningless diff anyway).
 		if file.Untracked {
-			data, err := readCapped(abs)
-			return diffMsg{path: file.Path, body: data, err: err}
+			if file.IsBinary {
+				return diffMsg{path: file.Path, body: valueStyle.Render("No diff available for Binary file."), err: nil}
+			} else {
+				data, err := readCapped(abs)
+				return diffMsg{path: file.Path, body: data, err: err}
+			}
 		}
 		// otherwise, we build a full diff from Git itself
 		body, err := repo.Diff(file.Path)
