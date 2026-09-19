@@ -11,6 +11,7 @@ import (
 // see the headings "NEW" and "CHANGED" in the UI.
 type fileGroups struct {
 	Changed []git.FileStatus
+	Deleted []git.FileStatus
 	New     []git.FileStatus
 }
 
@@ -20,6 +21,8 @@ func groupFiles(files []git.FileStatus) fileGroups {
 	for _, file := range files {
 		if file.Untracked {
 			groups.New = append(groups.New, file)
+		} else if file.Deleted() {
+			groups.Deleted = append(groups.Deleted, file)
 		} else {
 			groups.Changed = append(groups.Changed, file)
 		}

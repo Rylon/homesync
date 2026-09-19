@@ -109,7 +109,7 @@ func (model Model) branchText() string {
 
 // changesText shows how many files have changed, and how many untracked files there are.
 func (model Model) changesText() string {
-	changed, added := len(model.groups.Changed), len(model.groups.New)
+	changed, added := len(model.groups.Changed)+len(model.groups.Deleted), len(model.groups.New)
 	if changed == 0 && added == 0 {
 		return okStyle.Render("nothing to commit")
 	}

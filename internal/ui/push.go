@@ -57,6 +57,13 @@ func (state *pushState) reconcile(groups fileGroups) {
 
 	state.rows = nil
 
+	if len(groups.Deleted) > 0 {
+		state.rows = append(state.rows, pushRow{heading: "DELETED"})
+		for _, file := range groups.Deleted {
+			state.rows = append(state.rows, pushRow{file: file})
+		}
+	}
+
 	if len(groups.Changed) > 0 {
 		state.rows = append(state.rows, pushRow{heading: "CHANGED"})
 		for _, file := range groups.Changed {
@@ -420,10 +427,18 @@ func (model Model) renderPushFileList(width, height int) string {
 
 		// headings don't need a cursor or checkboxes
 		if row.heading != "" {
-			style := warnStyle
-			if row.heading == "NEW" {
+			style := headingStyle
+			switch row.heading {
+			case "DELETED":
+				style = errStyle
+
+			case "CHANGED":
+				style = warnStyle
+
+			case "NEW":
 				style = newStyle
 			}
+
 			lines = append(lines, "", style.Render(row.heading))
 			continue
 		}
