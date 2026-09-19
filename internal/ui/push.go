@@ -231,7 +231,7 @@ func (model Model) loadDiff() tea.Cmd {
 
 	return func() tea.Msg {
 		if file.IsBinary {
-			return diffMsg{path: file.Path, body: subtleStyle.Render("nil (binary file)"), err: nil}
+			return diffMsg{path: file.Path, body: valueStyle.Render("N/A (Binary file)"), err: nil}
 		}
 
 		// untracked files have no diff, so we just read the file contents, capped to 64KB.
