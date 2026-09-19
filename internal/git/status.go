@@ -1,7 +1,12 @@
 package git
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,6 +17,7 @@ type FileStatus struct {
 	Path      string
 	OldPath   string // the previous path of a rename or copy
 	Untracked bool
+	IsBinary  bool
 }
 
 // Has this file been staged for commit?
@@ -29,6 +35,24 @@ func (status FileStatus) Deleted() bool {
 	return status.X == 'D' || status.Y == 'D'
 }
 
+func isBinary(path string) bool {
+	// If the file doesn't exist, we just consider it not binary.
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	// Copy what Git does to detect if a file is binary - read the first 8000 bytes and check for a
+	// NUL byte.
+	buffer := make([]byte, 8000)
+	n, err := file.Read(buffer)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false
+	}
+	return bytes.IndexByte(buffer[:n], 0) >= 0
+}
+
 // Status returns every changed and untracked path in the repo.
 //
 //   - `-uall` also lists files inside a new directory, otherwise we'd just see the new directory only,
@@ -39,10 +63,10 @@ func (repo *Repo) Status() ([]FileStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseStatus(out)
+	return parseStatus(repo.Path, out)
 }
 
-func parseStatus(out string) ([]FileStatus, error) {
+func parseStatus(root string, out string) ([]FileStatus, error) {
 	records := strings.Split(out, "\x00")
 
 	var entries []FileStatus
@@ -58,12 +82,17 @@ func parseStatus(out string) ([]FileStatus, error) {
 			return nil, fmt.Errorf("status record %q is too short to hold a status and a path", record)
 		}
 
+		filePath := record[3:]
+
 		entry := FileStatus{
 			X:    record[0],
 			Y:    record[1],
-			Path: record[3:],
+			Path: filePath,
 		}
+
 		entry.Untracked = entry.X == '?' && entry.Y == '?'
+
+		entry.IsBinary = !entry.Deleted() && isBinary(filepath.Join(root, filePath))
 
 		// A rename or copy emits the old path as its own record. Consuming it
 		// here keeps the following entries aligned.

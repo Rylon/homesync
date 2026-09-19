@@ -230,6 +230,10 @@ func (model Model) loadDiff() tea.Cmd {
 	abs := model.absPath(file.Path)
 
 	return func() tea.Msg {
+		if file.IsBinary {
+			return diffMsg{path: file.Path, body: subtleStyle.Render("nil (binary file)"), err: nil}
+		}
+
 		// untracked files have no diff, so we just read the file contents, capped to 64KB.
 		if file.Untracked {
 			data, err := readCapped(abs)
