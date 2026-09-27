@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/Rylon/homesync/internal/castle"
@@ -152,4 +153,49 @@ func TestMain(m *testing.M) {
 	// Stops the global Git config of the developer, such as a signing key, from affecting the test repos.
 	os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	os.Exit(m.Run())
+}
+
+// A reload runs after every push and pull, so it must not wipe the error that tells the user why
+// the push or pull failed.
+func TestReloadKeepsTheErrorOfTheLastAction(t *testing.T) {
+	cases := []struct {
+		name  string
+		start func() (tea.Model, tea.Cmd)
+	}{
+		{"a failed pull", func() (tea.Model, tea.Cmd) {
+			return pullModel(pullIntegrating).updatePullMsg(pullReportMsg{err: errors.New("pull failed"), ahead: 1, behind: 1})
+		}},
+		{"a failed push", func() (tea.Model, tea.Cmd) {
+			return pushModelWithOneFile().pushExecDone(execDoneMsg{label: "push", err: errors.New("rejected")})
+		}},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			next, _ := testCase.start()
+			next, _ = next.(Model).Update(loadedMsg{})
+
+			if next.(Model).err == nil {
+				t.Error("the reload wiped the error")
+			}
+		})
+	}
+}
+
+func TestReloadClearsItsOwnErrorOnceItWorks(t *testing.T) {
+	model := releasedModel()
+
+	next, _ := model.Update(loadedMsg{err: errors.New("not a git repository")})
+	model = next.(Model)
+	if model.loadErr == nil {
+		t.Fatal("loadErr = nil, want the error from the failed reload")
+	}
+	if view := ansi.Strip(model.chrome("")); !strings.Contains(view, "not a git repository") {
+		t.Errorf("the chrome does not show the reload error:\n%s", view)
+	}
+
+	next, _ = model.Update(loadedMsg{})
+	if next.(Model).loadErr != nil {
+		t.Errorf("loadErr = %v, want nil after a reload that worked", next.(Model).loadErr)
+	}
 }

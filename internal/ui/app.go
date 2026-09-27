@@ -52,6 +52,7 @@ type Model struct {
 	loading  bool
 	notice   string
 	err      error
+	loadErr  error
 	fetchErr error
 
 	pickerCursor int
@@ -269,11 +270,11 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If we got errors updating, capture those, but leave the previous snapshot in place
 		// so the user can still see the last "known good" state of the castle.
 		if msg.err != nil {
-			model.err = msg.err
+			model.loadErr = msg.err
 			return model, nil
 		}
 
-		model.err = nil
+		model.loadErr = nil
 		// The snapshot is an embedded field on the main model, so the various other bits of the UI
 		// can just read attributes like `model.branch` and `model.files` directly.
 		model.snapshot = msg.snapshot
@@ -519,9 +520,12 @@ func (model Model) chrome(body string) string {
 		parts = append(parts, "", okStyle.Width(model.contentWidth()).Render(model.notice))
 	}
 
-	if model.err != nil {
+	for _, err := range []error{model.err, model.loadErr} {
+		if err == nil {
+			continue
+		}
 		// Indents the lines that git printed under the first line, so they read as one block.
-		headline, details, _ := strings.Cut(model.err.Error(), "\n")
+		headline, details, _ := strings.Cut(err.Error(), "\n")
 		parts = append(parts, "", errStyle.Width(model.contentWidth()).Render("Error: "+headline))
 		if details != "" {
 			parts = append(parts, errStyle.Width(model.contentWidth()).PaddingLeft(2).Render(details))
