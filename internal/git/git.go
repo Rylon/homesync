@@ -9,9 +9,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -40,7 +40,7 @@ const (
 	background
 )
 
-const backgroundTimeout = 20 * time.Second
+var backgroundTimeout = 20 * time.Second
 
 // Runs the specified Git command, capturing stdout or stderr if the command errored out.
 func (repo *Repo) run(mode runMode, args ...string) (string, error) {
@@ -55,9 +55,15 @@ func (repo *Repo) run(mode runMode, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo.Path}, args...)...)
 
 	if mode == background {
-		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND="+repo.batchSSHCommand())
-		// ssh can outlive a killed git and hold the output pipes open, which would block `Wait`.
-		cmd.WaitDelay = 2 * time.Second
+		// Creates a new session detached from the current terminal, so our UI stays in control.
+		// Only needed for background comands.
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		// By default, the timeout kills only git. If Git is running SSH commands at the time,
+		// output pipes are left open, so we kill the whole process group to ensure everything
+		// is tidied up.
+		cmd.Cancel = func() error {
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
 	}
 
 	var stdout, stderr bytes.Buffer
