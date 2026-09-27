@@ -34,6 +34,16 @@ type pullState struct {
 
 	linkResult link.Result
 	diffStat   string
+
+	// ahead and behind count the commits that only the castle has, and that only origin has,
+	// after a pull that failed.
+	ahead, behind int
+}
+
+// diverged reports whether the castle and origin both have commits that the other does not.
+// A pull cannot fast-forward then, and git refuses it with the `pull.ff only` setting.
+func (state pullState) diverged() bool {
+	return state.ahead > 0 && state.behind > 0
 }
 
 // pullIncomingMsg carries what the fetch found waiting on origin, and the `before` state.
@@ -50,6 +60,8 @@ type pullReportMsg struct {
 	rebasing   bool
 	diffStat   string
 	linkResult link.Result
+	ahead      int
+	behind     int
 	err        error
 }
 
@@ -80,6 +92,14 @@ func (model Model) handlePullKey(key string) (tea.Model, tea.Cmd) {
 			model.screen = screenDashboard
 			model.notice = ""
 			return model, nil
+		}
+
+		// A rebase puts the commits of the castle on top of the commits from origin. If it
+		// conflicts, the pull goes to the `pullConflicted` step, which can abort the rebase.
+		if key == "r" && model.err != nil && model.pull.diverged() {
+			model.err = nil
+			model.pull.step = pullIntegrating
+			return model, model.execGit("pull", "pull", "--rebase")
 		}
 
 		return model, nil
@@ -194,7 +214,7 @@ func (model Model) pullExecDone(msg execDoneMsg) (tea.Model, tea.Cmd) {
 
 // inspectAfterPull works out if the pull was completed cleanly, and if so, tries to link automatically
 func (model Model) inspectAfterPull(pullErr error) tea.Cmd {
-	repo, linker := model.repo, model.linker
+	repo, linker, branch := model.repo, model.linker, model.branch
 	before := model.pull.before
 
 	return func() tea.Msg {
@@ -210,7 +230,9 @@ func (model Model) inspectAfterPull(pullErr error) tea.Cmd {
 		}
 
 		if pullErr != nil {
-			return pullReportMsg{err: pullErr}
+			report := pullReportMsg{err: fmt.Errorf("pull failed: %w", pullErr)}
+			report.ahead, report.behind, _ = repo.AheadAndBehind("origin/" + branch)
+			return report
 		}
 
 		// DiffStats handles if a rebase was performed, so existing commits with new hashes after a rebase
@@ -257,6 +279,7 @@ func (model Model) updatePullMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		model.err = msg.err
 		model.pull.diffStat, model.pull.linkResult = msg.diffStat, msg.linkResult
+		model.pull.ahead, model.pull.behind = msg.ahead, msg.behind
 		model.pull.step = pullReport
 
 		return model.reload()
@@ -398,6 +421,23 @@ func (model Model) viewPullConflicted() string {
 
 func (model Model) viewPullReport() string {
 	// The chrome already prints `model.err`, so we just need to add a suitable heading and footer here.
+	if model.err != nil && model.pull.diverged() {
+		explanation := fmt.Sprintf("The castle has %s that origin does not have, and origin has %s that the castle does not have. "+
+			"Your Git settings do not allow automatic rebasing, so Git was unable to proceed.",
+			plural(model.pull.ahead, "commit"), plural(model.pull.behind, "commit"))
+
+		return lipgloss.JoinVertical(
+			lipgloss.Left,
+			headingStyle.Render("Pull did not complete"),
+			"",
+			valueStyle.Width(model.contentWidth()).Render(explanation),
+			"",
+			valueStyle.Width(model.contentWidth()).Render("A rebase puts the local commits in the castle on top of the new commits from origin."),
+			"",
+			model.help([2]string{"r", "rebase onto origin"}, [2]string{"enter", "back to dashboard"}),
+		)
+	}
+
 	if model.err != nil {
 		return lipgloss.JoinVertical(
 			lipgloss.Left,

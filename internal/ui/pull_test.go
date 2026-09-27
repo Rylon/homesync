@@ -123,3 +123,55 @@ func TestPullScreensCountThingsInGoodEnglish(t *testing.T) {
 		})
 	}
 }
+
+// With `pull.ff only`, git refuses to pull when the castle and origin both have new commits.
+func TestAFailedPullReportsWhenTheCastleAndOriginHaveDiverged(t *testing.T) {
+	model := castleBehindOrigin(t)
+	commitIn(t, model.castle.Root, "local change")
+	gitIn(t, model.castle.Root, "fetch", "origin")
+	model.branch = "main"
+
+	msg := model.inspectAfterPull(errors.New("\nfatal: Not possible to fast-forward, aborting."))().(pullReportMsg)
+
+	if msg.ahead != 1 || msg.behind != 1 {
+		t.Errorf("ahead, behind = %d, %d; want 1, 1", msg.ahead, msg.behind)
+	}
+	if msg.err == nil || !strings.HasPrefix(msg.err.Error(), "pull failed:") {
+		t.Errorf("err = %v, want it to start with \"pull failed:\"", msg.err)
+	}
+}
+
+func TestDivergedPullReportExplainsAndOffersARebase(t *testing.T) {
+	model := pullModel(pullIntegrating)
+	model.width = 300
+
+	next, _ := model.updatePullMsg(pullReportMsg{err: errors.New("pull failed: not possible to fast-forward"), ahead: 1, behind: 2})
+	model = next.(Model)
+
+	view := ansi.Strip(model.viewPullReport())
+	for _, want := range []string{"1 commit that origin does not have", "2 commits that the castle does not have", "r rebase"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("view does not contain %q:\n%s", want, view)
+		}
+	}
+
+	next, cmd := model.handlePullKey("r")
+	if cmd == nil || next.(Model).pull.step != pullIntegrating {
+		t.Errorf("pressing r: step = %d, cmd = %v, want the rebase to start", next.(Model).pull.step, cmd != nil)
+	}
+}
+
+func TestRebaseIsOnlyOfferedWhenTheCastleAndOriginHaveDiverged(t *testing.T) {
+	model := pullModel(pullIntegrating)
+	model.width = 100
+
+	next, _ := model.updatePullMsg(pullReportMsg{err: errors.New("pull failed: could not read from remote repository"), behind: 1})
+	model = next.(Model)
+
+	if view := ansi.Strip(model.viewPullReport()); strings.Contains(view, "rebase") {
+		t.Errorf("view offers a rebase:\n%s", view)
+	}
+	if _, cmd := model.handlePullKey("r"); cmd != nil {
+		t.Error("pressing r started a command, want nothing to happen")
+	}
+}
