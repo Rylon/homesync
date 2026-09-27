@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -52,5 +53,26 @@ func TestSpaceDeselectsAnAlreadySelectedFile(t *testing.T) {
 
 	if next.(Model).push.selected["home/.exampleapp/settings.json"] {
 		t.Error("space did not deselect the file")
+	}
+}
+
+// An error belongs to the screen that raised it, so opening another screen must clear it.
+func TestDashboardKeysClearTheLastErrorWhenOpeningAScreen(t *testing.T) {
+	for _, key := range []string{"p", "u", "l", "U"} {
+		t.Run(key, func(t *testing.T) {
+			model := releasedModel()
+			model.update = offeredRelease()
+			model.err = errors.New("This is a fancy error that the user saw on one screen, but shouldn't appear on another screen.")
+
+			next, _ := model.handleDashboardKey(key)
+			model = next.(Model)
+
+			if model.screen == screenDashboard {
+				t.Fatalf("pressing %q did not open a screen", key)
+			}
+			if model.err != nil {
+				t.Errorf("err = %v, want nil", model.err)
+			}
+		})
 	}
 }

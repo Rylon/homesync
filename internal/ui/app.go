@@ -413,6 +413,7 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 	case "p":
 		model.screen = screenPush
 		model.notice = ""
+		model.err = nil
 		model.push.reconcile(model.groups)
 		// triggers the diff load right away so the user sees the diff for the first file
 		// as soon as the screen loads, rather than having to move the cursor first.
@@ -421,12 +422,14 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 	case "u":
 		model.screen = screenPull
 		model.notice = ""
+		model.err = nil
 		model.pull = pullState{}
 		return model, nil
 
 	case "l":
 		model.screen = screenLinks
 		model.notice = ""
+		model.err = nil
 		model.links.reconcile(model.actions)
 		return model, nil
 
@@ -434,6 +437,7 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 		if model.update.available {
 			model.screen = screenUpdate
 			model.notice = ""
+			model.err = nil
 		}
 		return model, nil
 	}
