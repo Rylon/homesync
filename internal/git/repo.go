@@ -15,14 +15,14 @@ type Commit struct {
 
 // Branch returns the currently checked out branch name.
 func (repo *Repo) Branch() (string, error) {
-	out, err := repo.run("rev-parse", "--abbrev-ref", "HEAD")
+	out, err := repo.run(normal, "rev-parse", "--abbrev-ref", "HEAD")
 	return strings.TrimSpace(out), err
 }
 
 // RemoteURL returns the origin URL. It errors when no origin is configured,
 // because a castle without one cannot be pushed or pulled.
 func (repo *Repo) RemoteURL() (string, error) {
-	out, err := repo.run("config", "--get", "remote.origin.url")
+	out, err := repo.run(normal, "config", "--get", "remote.origin.url")
 	if err != nil {
 		return "", fmt.Errorf("no origin remote configured for %s", repo.Path)
 	}
@@ -32,14 +32,14 @@ func (repo *Repo) RemoteURL() (string, error) {
 
 // RevParse resolves a ref to its full hash.
 func (repo *Repo) RevParse(ref string) (string, error) {
-	out, err := repo.run("rev-parse", ref)
+	out, err := repo.run(normal, "rev-parse", ref)
 	return strings.TrimSpace(out), err
 }
 
 // AheadAndBehind counts commits that diverge from upstream. Ahead means local
 // commits not on upstream. Behind means upstream commits we've not pulled yet.
 func (repo *Repo) AheadAndBehind(upstream string) (ahead, behind int, err error) {
-	out, err := repo.run("rev-list", "--left-right", "--count", upstream+"...HEAD")
+	out, err := repo.run(normal, "rev-list", "--left-right", "--count", upstream+"...HEAD")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -77,7 +77,7 @@ func (repo *Repo) LogRange(from, to string) ([]Commit, error) {
 // Parses the log lines in the format `<abbrev-hash> <subject>` from Log or LogRange (--oneline format)
 // builds a slice of Commit structs for each.
 func (repo *Repo) parseLog(args ...string) ([]Commit, error) {
-	out, err := repo.run(args...)
+	out, err := repo.run(normal, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +99,12 @@ func (repo *Repo) parseLog(args ...string) ([]Commit, error) {
 
 // Diff returns the combined staged and unstaged diff for a given path, so we see the whole change.
 func (repo *Repo) Diff(path string) (string, error) {
-	return repo.run("diff", "HEAD", "--", path)
+	return repo.run(normal, "diff", "HEAD", "--", path)
 }
 
 // DiffStat summarises the change between two refs.
 func (repo *Repo) DiffStat(from, to string) (string, error) {
-	return repo.run("diff", "--stat", from+".."+to)
+	return repo.run(normal, "diff", "--stat", from+".."+to)
 }
 
 // Add stages the given file paths explicitly, avoiding any use of -A, or -u, which
@@ -113,7 +113,7 @@ func (repo *Repo) Add(paths ...string) error {
 	if len(paths) == 0 {
 		return nil
 	}
-	_, err := repo.run(append([]string{"add", "--"}, paths...)...)
+	_, err := repo.run(normal, append([]string{"add", "--"}, paths...)...)
 	return err
 }
 
@@ -130,7 +130,7 @@ func (repo *Repo) IsRebasing() bool {
 
 // ConflictedPaths lists files with unresolved merge conflicts.
 func (repo *Repo) ConflictedPaths() ([]string, error) {
-	out, err := repo.run("diff", "--name-only", "--diff-filter=U", "-z")
+	out, err := repo.run(normal, "diff", "--name-only", "--diff-filter=U", "-z")
 	if err != nil {
 		return nil, err
 	}

@@ -59,7 +59,7 @@ func isBinary(path string) bool {
 //     and potentially miss new files inside it.
 //   - `-z` separates records with NUL, which stops --porcelain quoting paths that contain spaces or quotes.
 func (repo *Repo) Status() ([]FileStatus, error) {
-	out, err := repo.run("status", "--porcelain=v1", "-uall", "-z")
+	out, err := repo.run(normal, "status", "--porcelain=v1", "-uall", "-z")
 	if err != nil {
 		return nil, err
 	}

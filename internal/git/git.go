@@ -7,9 +7,12 @@ package git
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type Repo struct {
@@ -27,10 +30,37 @@ func (repo *Repo) Command(args ...string) *exec.Cmd {
 	return exec.Command("git", append([]string{"-C", repo.Path}, args...)...)
 }
 
+// normal runMode means the command runs in the foreground, with prompts passed through
+// background runMode means the command runs in the background, with prompts hidden, and
+// a timeout applied.
+type runMode int
+
+const (
+	normal runMode = iota
+	background
+)
+
+const backgroundTimeout = 20 * time.Second
+
 // Runs the specified Git command, capturing stdout or stderr if the command errored out.
-func (repo *Repo) run(args ...string) (string, error) {
+func (repo *Repo) run(mode runMode, args ...string) (string, error) {
+	ctx := context.Background()
+
+	if mode == background {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, backgroundTimeout)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo.Path}, args...)...)
+
+	if mode == background {
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_SSH_COMMAND="+repo.batchSSHCommand())
+		// ssh can outlive a killed git and hold the output pipes open, which would block `Wait`.
+		cmd.WaitDelay = 2 * time.Second
+	}
+
 	var stdout, stderr bytes.Buffer
-	cmd := repo.Command(args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
