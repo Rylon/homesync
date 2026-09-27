@@ -43,9 +43,10 @@ type Model struct {
 	// rest still read directly.
 	snapshot
 
-	loading bool
-	notice  string
-	err     error
+	loading  bool
+	notice   string
+	err      error
+	fetchErr error
 
 	pickerCursor int
 
@@ -98,10 +99,10 @@ func (model Model) Init() tea.Cmd {
 	if model.repo == nil {
 		return nil
 	}
-	// on startup we need to trigger a reload, so we get the reload command to run,
+	// on startup we need to trigger a refresh, so we get the refresh command to run,
 	// and ignore the returned model, since Init only cares about the command to run.
 	// We return that, and the update check command as a batch.
-	_, cmd := model.reload()
+	_, cmd := model.refresh()
 	return tea.Batch(cmd, model.checkForUpdate())
 }
 
@@ -124,12 +125,25 @@ type snapshot struct {
 // loadedMsg fires when the new snapshot has been built.
 type loadedMsg struct {
 	snapshot
-	err error
+	fetched  bool
+	fetchErr error
+	err      error
 }
 
-// The reload Bubble Tea commands sets up the job for reloading the snapshot, and how to return
-// it via the loadedMsg, so the Update loop can embed it into the root Model via the snapshot.
+// The reload/refresh  Bubble Tea commands set up the job for reloading the local snapshot, or
+// fetching the latest state from origin.
+
+// reload refreshes the local snapshot from the repo on disk only.
 func (model Model) reload() (Model, tea.Cmd) {
+	return model.load(false)
+}
+
+// refresh fetches from origin first, then reloads the local snapshot from the repo on disk.
+func (model Model) refresh() (Model, tea.Cmd) {
+	return model.load(true)
+}
+
+func (model Model) load(fetch bool) (Model, tea.Cmd) {
 	model.loading = true
 
 	repo, linker := model.repo, model.linker
@@ -143,6 +157,11 @@ func (model Model) reload() (Model, tea.Cmd) {
 		}
 
 		msg.remote, _ = repo.RemoteURL()
+
+		if fetch && msg.remote != "" {
+			msg.fetched = true
+			msg.fetchErr = repo.FetchInBackground()
+		}
 
 		msg.ahead, msg.behind, msg.upstreamErr = repo.AheadAndBehind("origin/" + msg.branch)
 
@@ -214,6 +233,9 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The snapshot is an embedded field on the main model, so the various other bits of the UI
 		// can just read attributes like `model.branch` and `model.files` directly.
 		model.snapshot = msg.snapshot
+		if msg.fetched {
+			model.fetchErr = msg.fetchErr
+		}
 
 		// Here we sync the Push and Links screens with the new snapshots, this allows us to
 		// preserve the current cursor position, and any selections the user already made,
@@ -329,7 +351,7 @@ func (model Model) handlePickerKey(key string) (tea.Model, tea.Cmd) {
 
 	case "enter":
 		model.selectCastle(model.pickerCursor)
-		return model.reload()
+		return model.refresh()
 
 	}
 
@@ -346,7 +368,7 @@ func (model Model) handleDashboardKey(key string) (tea.Model, tea.Cmd) {
 
 	case "r":
 		model.notice = ""
-		return model.reload()
+		return model.refresh()
 
 	case "p":
 		model.screen = screenPush
