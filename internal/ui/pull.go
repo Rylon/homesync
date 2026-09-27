@@ -181,6 +181,7 @@ func (model Model) pullExecDone(msg execDoneMsg) (tea.Model, tea.Cmd) {
 			return model, nil
 		}
 		model.err = nil
+		model.fetchErr = nil
 		return model, model.fetchIncoming()
 
 	case "pull":
