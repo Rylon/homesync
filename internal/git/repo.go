@@ -36,6 +36,13 @@ func (repo *Repo) RevParse(ref string) (string, error) {
 	return strings.TrimSpace(out), err
 }
 
+// FetchInBackground updates refs from origin, so we can see if there are new commits
+// that need to be pulled.
+func (repo *Repo) FetchInBackground() error {
+	_, err := repo.run(background, "fetch", "--quiet", "origin")
+	return err
+}
+
 // AheadAndBehind counts commits that diverge from upstream. Ahead means local
 // commits not on upstream. Behind means upstream commits we've not pulled yet.
 func (repo *Repo) AheadAndBehind(upstream string) (ahead, behind int, err error) {
