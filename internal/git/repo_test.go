@@ -1,10 +1,14 @@
 package git
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // addOrigin gives the repo a bare origin and pushes main to it.
@@ -136,6 +140,81 @@ func TestAheadAndBehindCountsRemoteCommitsAfterFetch(t *testing.T) {
 	}
 	if ahead != 0 || behind != 1 {
 		t.Errorf("ahead, behind = %d, %d; want 0, 1", ahead, behind)
+	}
+}
+
+func TestFetchInBackgroundUpdatesTheRemoteTrackingRef(t *testing.T) {
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	bare := addOrigin(t, repo)
+	commitViaClone(t, bare, ".inputrc", "set editing-mode vi\n")
+
+	if err := repo.FetchInBackground(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, behind, err := repo.AheadAndBehind("origin/main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if behind != 1 {
+		t.Errorf("behind = %d, want 1", behind)
+	}
+}
+
+func TestFetchInBackgroundReportsAnUnreachableOrigin(t *testing.T) {
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	mustGit(t, repo.Path, "remote", "add", "origin", filepath.Join(t.TempDir(), "missing.git"))
+
+	if err := repo.FetchInBackground(); err == nil {
+		t.Fatal("want an error for an unreachable origin, got nil")
+	}
+}
+
+// A hung ssh must not outlive the timeout, or it holds the output pipes open and `run` never returns.
+func TestFetchInBackgroundKillsAHungSSHOnTimeout(t *testing.T) {
+	repo := newRepo(t)
+	commitFile(t, repo, ".zshrc", "export A=1\n")
+	mustGit(t, repo.Path, "remote", "add", "origin", "ssh://example.invalid/repo.git")
+
+	pidFile := filepath.Join(t.TempDir(), "ssh.pid")
+	fakeSSH := filepath.Join(t.TempDir(), "fake-ssh")
+	writeFile(t, filepath.Dir(fakeSSH), filepath.Base(fakeSSH), "#!/bin/sh\necho $$ > "+pidFile+"\nexec sleep 60\n")
+	if err := os.Chmod(fakeSSH, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_SSH_COMMAND", fakeSSH)
+
+	original := backgroundTimeout
+	backgroundTimeout = 500 * time.Millisecond
+	t.Cleanup(func() { backgroundTimeout = original })
+
+	started := time.Now()
+	if err := repo.FetchInBackground(); err == nil {
+		t.Fatal("want an error for a fetch that timed out, got nil")
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("fetch took %v, want it to return soon after the timeout", elapsed)
+	}
+
+	pidText, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("the fake ssh never ran: %v", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidText)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The killed ssh is an orphan, so it lingers as a zombie until the init process reaps it.
+	deadline := time.Now().Add(5 * time.Second)
+	for syscall.Kill(pid, 0) == nil {
+		if time.Now().After(deadline) {
+			syscall.Kill(pid, syscall.SIGKILL)
+			t.Fatal("the fake ssh is still running after the fetch returned")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 
