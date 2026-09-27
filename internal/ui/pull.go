@@ -355,7 +355,7 @@ func (model Model) viewPullPreview() string {
 		lines = append(lines, trimRight(subtleStyle.Render("  "+commit.Hash+"  ")+valueStyle.Render(commit.Subject), model.contentWidth()))
 	}
 
-	lines = append(lines, "", model.help([2]string{"enter", "pull and symlink"}, [2]string{"esc", "cancel"}))
+	lines = append(lines, "", model.help([2]string{"enter", "pull"}, [2]string{"esc", "cancel"}))
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
