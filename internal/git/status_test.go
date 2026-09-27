@@ -238,3 +238,33 @@ func TestStatusReportsDeletedFile(t *testing.T) {
 		t.Error("Deleted() = false, want true")
 	}
 }
+
+func TestIgnoredUntrackedListsWhatGitIgnoresInsideADirectory(t *testing.T) {
+	// Stops the global ignore rules of the developer from affecting the result.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	repo := newRepo(t)
+	commitFile(t, repo, "home/.gitignore", ".DS_Store\ncache/\n")
+	commitFile(t, repo, "home/.exampleapp/settings.json", "{}\n")
+	writeFile(t, repo.Path, "home/.DS_Store", "finder\n")
+	writeFile(t, repo.Path, "home/.exampleapp/.DS_Store", "finder\n")
+	writeFile(t, repo.Path, "home/cache/data", "scratch\n")
+	writeFile(t, repo.Path, "home/.zshrc", "export A=1\n")
+	writeFile(t, repo.Path, ".DS_Store", "outside home\n")
+
+	got, err := repo.IgnoredUntracked("home")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]bool{".DS_Store": true, ".exampleapp/.DS_Store": true, "cache": true}
+	if len(got) != len(want) {
+		t.Fatalf("IgnoredUntracked() = %v, want %v", got, want)
+	}
+	for path := range want {
+		if !got[path] {
+			t.Errorf("IgnoredUntracked() = %v, missing %q", got, path)
+		}
+	}
+}

@@ -108,3 +108,25 @@ func parseStatus(root string, out string) ([]FileStatus, error) {
 	}
 	return entries, nil
 }
+
+// IgnoredUntracked lists the untracked paths inside `dir` that git ignores, so we can
+// filter them out of various operations.
+func (repo *Repo) IgnoredUntracked(dir string) (map[string]bool, error) {
+	out, err := repo.run(normal, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory", "--", dir)
+	if err != nil {
+		return nil, err
+	}
+
+	ignored := make(map[string]bool)
+	for _, path := range strings.Split(out, "\x00") {
+		if path == "" {
+			continue
+		}
+		rel, err := filepath.Rel(dir, strings.TrimSuffix(path, "/"))
+		if err != nil {
+			return nil, err
+		}
+		ignored[rel] = true
+	}
+	return ignored, nil
+}

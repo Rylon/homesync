@@ -88,13 +88,17 @@ func (model *Model) selectCastle(index int) {
 	model.loading = true
 
 	model.castle = model.castles[index]
-	model.repo = git.New(model.castle.Root)
+	repo := git.New(model.castle.Root)
+	model.repo = repo
 	model.subdirs, _ = castle.Subdirs(model.castle.Root)
 	model.linker = &link.Linker{
 		Castle:         model.castle,
 		HomeDir:        model.homeDir,
 		Subdirs:        model.subdirs,
 		AllCastleRoots: model.roots,
+		Ignored: func() (map[string]bool, error) {
+			return repo.IgnoredUntracked(castle.HomeDirName)
+		},
 	}
 	model.screen = screenDashboard
 }

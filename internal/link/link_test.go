@@ -1,6 +1,7 @@
 package link
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -488,5 +489,43 @@ func TestOverwriteRefusesNonConflictAction(t *testing.T) {
 
 	if err := linker.Overwrite(action); err == nil {
 		t.Fatal("want an error for a non-conflict action, got nil")
+	}
+}
+
+// Files that git ignores, such as the `.DS_Store` files that Finder makes, are not part of the castle.
+func TestPlanSkipsWhatGitIgnores(t *testing.T) {
+	fixture := newFixture(t)
+	fixture.castleFile(".zshrc", "export A=1\n")
+	fixture.castleFile(".DS_Store", "finder\n")
+	fixture.castleFile(".exampleapp/settings.json", "{}\n")
+	fixture.castleFile(".exampleapp/.DS_Store", "finder\n")
+	fixture.castleFile(".cache/data", "scratch\n")
+
+	linker := fixture.linker(".exampleapp", ".cache")
+	linker.Ignored = func() (map[string]bool, error) {
+		return map[string]bool{".DS_Store": true, ".exampleapp/.DS_Store": true, ".cache": true}, nil
+	}
+
+	actions, err := linker.Plan()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, rel := range []string{".DS_Store", ".exampleapp/.DS_Store", ".cache/data"} {
+		absent(t, actions, rel)
+	}
+	for _, rel := range []string{".zshrc", ".exampleapp/settings.json"} {
+		find(t, actions, rel)
+	}
+}
+
+func TestPlanReportsWhenItCannotListIgnoredFiles(t *testing.T) {
+	linker := newFixture(t).linker()
+	linker.Ignored = func() (map[string]bool, error) {
+		return nil, errors.New("not a git repository")
+	}
+
+	if _, err := linker.Plan(); err == nil {
+		t.Fatal("want an error, got nil")
 	}
 }

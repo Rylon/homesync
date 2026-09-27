@@ -80,6 +80,9 @@ type Linker struct {
 	Subdirs []string
 	// the linker needs to know about all castle roots, so it can refuse to link a file into any of them.
 	AllCastleRoots []string
+	// Ignored lists the paths inside the castle's home directory that git ignores,so we don't
+	// erroneously show them as missing links and offer to create them.
+	Ignored func() (map[string]bool, error)
 }
 
 // allCastleRoots returns the roots of every castle on the machine, or just the
@@ -115,6 +118,17 @@ func selfAndAncestors(subdir string) []string {
 	return paths
 }
 
+// insideIgnored is used to handle folders within a Git-ignored folder, since
+// normally Git masks this by not listing files inside any ignored directory.
+func insideIgnored(rel string, ignored map[string]bool) bool {
+	for _, path := range selfAndAncestors(rel) {
+		if ignored[path] {
+			return true
+		}
+	}
+	return false
+}
+
 // insideRoot reports whether a given destination is inside any castle root.
 func (linker *Linker) insideRoot(destination string) (string, bool) {
 	for _, root := range linker.allCastleRoots() {
@@ -135,6 +149,14 @@ func (linker *Linker) Plan() ([]Action, error) {
 	ignore := linker.ignoreSet()
 	bases := append([]string{"."}, linker.Subdirs...)
 
+	gitIgnored := map[string]bool{}
+	if linker.Ignored != nil {
+		var err error
+		if gitIgnored, err = linker.Ignored(); err != nil {
+			return nil, fmt.Errorf("could not determine Git ignore list: %w", err)
+		}
+	}
+
 	var actions []Action
 	for _, base := range bases {
 		entries, err := os.ReadDir(filepath.Join(linker.Castle.Home(), base))
@@ -152,7 +174,7 @@ func (linker *Linker) Plan() ([]Action, error) {
 		// Now we go through all the files in the castle, and classify what action is needed for each.
 		for _, entry := range entries {
 			rel := filepath.Join(base, entry.Name())
-			if ignore[rel] {
+			if ignore[rel] || insideIgnored(rel, gitIgnored) {
 				continue
 			}
 			action, err := linker.classify(rel)
