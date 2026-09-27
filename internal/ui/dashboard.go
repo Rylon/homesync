@@ -19,6 +19,13 @@ func (model Model) viewDashboard() string {
 		rowFit("Castle", valueStyle.Render(model.tildePath(model.castle.Root)), model.contentWidth()),
 		rowFit("Origin", valueStyle.Render(model.originText()), model.contentWidth()),
 		rowFit("Branch", model.branchText(), model.contentWidth()),
+	}
+
+	if model.fetchErr != nil {
+		rows = append(rows, rowFit("Fetch", warnStyle.Render(model.fetchErr.Error()), model.contentWidth()))
+	}
+
+	rows = append(rows,
 		"",
 		rowFit("Changes", model.changesText(), model.contentWidth()),
 		rowFit("Links", model.linksText(), model.contentWidth()),
@@ -30,7 +37,7 @@ func (model Model) viewDashboard() string {
 		rowFit("Version", model.versionText(), model.contentWidth()),
 		"",
 		model.help(model.dashboardHelp()...),
-	}
+	)
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
