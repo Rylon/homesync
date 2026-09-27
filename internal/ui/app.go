@@ -4,6 +4,12 @@
 package ui
 
 import (
+	"bytes"
+	"errors"
+	"io"
+	"os"
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -191,9 +197,40 @@ type execDoneMsg struct {
 // execGit hands the terminal to `git`, so it can work normally with whatever config the user has
 // for things like commit signing, and SSH prompts, etc. `git [commit|push|fetch|pull]` all use this.
 func (model Model) execGit(label string, args ...string) tea.Cmd {
-	return tea.ExecProcess(model.repo.Command(args...), func(err error) tea.Msg {
-		return execDoneMsg{label: label, err: err}
+	cmd := model.repo.Command(args...)
+
+	// Bubble Tea redraws the UI over the terminal as soon as git exits, so the user cannot read
+	// why git failed. We keep a copy of stderr, to show the reason in the UI.
+	var stderr bytes.Buffer
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return execDoneMsg{label: label, err: gitFailure(err, stderr.String())}
 	})
+}
+
+// gitFailure replaces the exit status in `err` with an error from Git, so the user
+// can address it, excluding the "hint:" lines from Git itself, since homesync is
+// managing everything.
+func gitFailure(err error, stderr string) error {
+	if err == nil {
+		return nil
+	}
+
+	var lines []string
+	for _, line := range strings.Split(stderr, "\n") {
+		line = strings.TrimRight(line, " \r")
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "hint:") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	if len(lines) == 0 {
+		return err
+	}
+
+	return errors.New("\n" + strings.Join(lines, "\n"))
 }
 
 // Update is called by Bubble Tea once per message, in arrival order.
@@ -211,6 +248,9 @@ func (model Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Results of the automatic updates.
 	case updateCheckedMsg, updateAppliedMsg:
 		return model.handleUpdateMsg(msg)
+
+	case pushCheckedMsg:
+		return model.pushChecked(msg)
 
 	case tea.WindowSizeMsg:
 		// Used to adjust the window sizes, for example the split when a diff is being shown,
@@ -468,11 +508,16 @@ func (model Model) chrome(body string) string {
 	parts := []string{header, "", body}
 
 	if model.notice != "" {
-		parts = append(parts, "", okStyle.Render(trimRight(model.notice, model.contentWidth())))
+		parts = append(parts, "", okStyle.Width(model.contentWidth()).Render(model.notice))
 	}
 
 	if model.err != nil {
-		parts = append(parts, "", errStyle.Render(trimRight("Error: "+model.err.Error(), model.contentWidth())))
+		// Indents the lines that git printed under the first line, so they read as one block.
+		headline, details, _ := strings.Cut(model.err.Error(), "\n")
+		parts = append(parts, "", errStyle.Width(model.contentWidth()).Render("Error: "+headline))
+		if details != "" {
+			parts = append(parts, errStyle.Width(model.contentWidth()).PaddingLeft(2).Render(details))
+		}
 	}
 
 	framed := lipgloss.NewStyle().

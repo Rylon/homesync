@@ -42,6 +42,8 @@ type pushState struct {
 	diff     string
 
 	ready bool
+
+	checkingOrigin bool
 }
 
 // reconciles the push screen's row list with the latest fileGroups list, and attempts to preserve
@@ -210,10 +212,14 @@ func (model Model) handlePushKey(msg tea.KeyPressMsg, key string) (tea.Model, te
 		model.push.message.SetValue("")
 		return model, model.push.message.Focus()
 
-	// "push" - triggers the `git push` command.
+	// "push" - checks origin, then triggers the `git push` command.
 	case "P":
-		model.notice = ""
-		return model, model.execGit("push", "push")
+		if model.push.checkingOrigin {
+			return model, nil
+		}
+		model.push.checkingOrigin = true
+		model.notice = "checking origin for new commits..."
+		return model, model.checkOriginBeforePush()
 
 	// "refresh" - refreshes the state of the castle and homedir.
 	case "r":
@@ -311,6 +317,44 @@ func (model Model) commitSelectedFiles(message string) (tea.Model, tea.Cmd) {
 	// Runs the actual `git commit`, execGit hands control to the terminal, so the user's own
 	// Git config is used (name, commit signing, etc).
 	return model, model.execGit("commit", "commit", "-m", message)
+}
+
+// pushCheckedMsg says how many commits origin has that the castle does not, just before a push.
+type pushCheckedMsg struct {
+	behind int
+	err    error
+}
+
+// checkOriginBeforePush fetches before a push. Git rejects a push to an origin that has new
+// commits, so we send the user to pull first, instead of letting the push fail.
+func (model Model) checkOriginBeforePush() tea.Cmd {
+	repo, branch := model.repo, model.branch
+	return func() tea.Msg {
+		if err := repo.FetchInBackground(); err != nil {
+			return pushCheckedMsg{err: err}
+		}
+		_, behind, err := repo.AheadAndBehind("origin/" + branch)
+		return pushCheckedMsg{behind: behind, err: err}
+	}
+}
+
+func (model Model) pushChecked(msg pushCheckedMsg) (tea.Model, tea.Cmd) {
+	model.push.checkingOrigin = false
+	model.notice = ""
+
+	if model.screen != screenPush {
+		return model, nil
+	}
+
+	if msg.err == nil && msg.behind > 0 {
+		model.err = fmt.Errorf("origin has %s that the castle does not have yet. Press esc, then u to pull changes before you push.",
+			plural(msg.behind, "new commit"))
+		return model, nil
+	}
+
+	// If the check failed, we push anyway. The background fetch cannot prompt for credentials,
+	// but `git push` can, and it tells the user if origin has new commits.
+	return model, model.execGit("push", "push")
 }
 
 // pushExecDone reports how `git commit` or `git push` went. We refresh after either,
