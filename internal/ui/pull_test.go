@@ -2,9 +2,11 @@ package ui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/Rylon/homesync/internal/git"
 )
@@ -88,6 +90,35 @@ func TestUpdatePullMsgMovesToTheRightStep(t *testing.T) {
 
 			if testCase.wantPreview != nil && len(model.pull.incoming) != len(testCase.wantPreview) {
 				t.Errorf("incoming = %+v, want %+v", model.pull.incoming, testCase.wantPreview)
+			}
+		})
+	}
+}
+
+func TestPullScreensCountThingsInGoodEnglish(t *testing.T) {
+	cases := []struct {
+		name  string
+		count int
+		view  func(Model) string
+		want  string
+	}{
+		{"one symlink to repair", 1, Model.viewPullReport, "1 symlink to repair."},
+		{"several symlinks to repair", 2, Model.viewPullReport, "2 symlinks to repair."},
+		{"one incoming commit", 1, Model.viewPullPreview, "1 new commit on origin"},
+		{"several incoming commits", 2, Model.viewPullPreview, "2 new commits on origin"},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			model := pullModel(pullReport)
+			model.width = 100
+			model.health.Missing = testCase.count
+			for range testCase.count {
+				model.pull.incoming = append(model.pull.incoming, git.Commit{Hash: "abc1234", Subject: "change"})
+			}
+
+			if view := ansi.Strip(testCase.view(model)); !strings.Contains(view, testCase.want) {
+				t.Errorf("view does not contain %q:\n%s", testCase.want, view)
 			}
 		})
 	}

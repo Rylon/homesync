@@ -345,7 +345,7 @@ func (model Model) viewPullPreview() string {
 	}
 
 	lines := []string{
-		headingStyle.Render(fmt.Sprintf("new %s on origin", plural(len(model.pull.incoming), "commit"))),
+		headingStyle.Render(plural(len(model.pull.incoming), "new commit") + " on origin"),
 		subtleStyle.Render(trimRight("Nothing has been pulled yet.", model.contentWidth())),
 		"",
 	}
@@ -422,7 +422,7 @@ func (model Model) viewPullReport() string {
 	// Wait until loading has finished before showing any problems, so we know the state is up to date.
 	if !model.loading && model.health.Problems() > 0 {
 		lines = append(lines, warnStyle.Render(
-			fmt.Sprintf("%s need attention. Press l on the main dashboard.", plural(model.health.Problems(), "symlink"))))
+			fmt.Sprintf("%s to repair. Press l on the main dashboard.", plural(model.health.Problems(), "symlink"))))
 	}
 
 	if model.pull.diffStat != "" {
