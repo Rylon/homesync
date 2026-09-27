@@ -303,7 +303,7 @@ func (model Model) viewPullGate() string {
 		lines := []string{
 			headingStyle.Render("Pull from origin"),
 			"",
-			valueStyle.Render(trimRight("There are no local changes to tracked files, so a pull is safe.", model.contentWidth())),
+			valueStyle.Render(trimRight("Upstream changes are fetched for review, you can then decide to pull them.", model.contentWidth())),
 		}
 
 		if len(model.groups.New) > 0 {
