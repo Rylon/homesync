@@ -2,9 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/Rylon/homesync/internal/git"
 )
@@ -207,5 +212,116 @@ func TestFileListScrolling(t *testing.T) {
 		if !strings.Contains(rendered, ">") {
 			t.Errorf("cursor on row %d: the marker is not on screen:\n%s", index, rendered)
 		}
+	}
+}
+
+// castleWithChanges builds a castle on the push screen, with a changed `.zshrc` and a new
+// `.newapp/config`, both selected.
+func castleWithChanges(t *testing.T) Model {
+	t.Helper()
+	model := castleBehindOrigin(t)
+	home := filepath.Join(model.castle.Root, "home")
+
+	writeCastleFile(t, home, ".zshrc", "export A=1\n")
+	gitIn(t, model.castle.Root, "add", "home/.zshrc")
+	commitIn(t, model.castle.Root, "add .zshrc")
+	writeCastleFile(t, home, ".zshrc", "export A=2\n")
+	writeCastleFile(t, home, ".newapp/config", "theme = dark\n")
+
+	_, cmd := model.reload()
+	next, _ := model.Update(cmd())
+	model = next.(Model)
+	model.screen = screenPush
+	model.push.reconcile(model.groups)
+	model.push.selected["home/.zshrc"] = true
+	model.push.selected["home/.newapp/config"] = true
+	return model
+}
+
+func writeCastleFile(t *testing.T, home, rel, content string) {
+	t.Helper()
+	path := filepath.Join(home, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func pressPushKey(model Model, key string) (Model, tea.Cmd) {
+	next, cmd := model.handlePushKey(tea.KeyPressMsg{Text: key}, key)
+	return next.(Model), cmd
+}
+
+func TestRevertNeedsASelectedFile(t *testing.T) {
+	model := pushModelWithOneFile()
+
+	model, _ = pressPushKey(model, "x")
+
+	if model.push.mode != pushBrowsing || model.notice == "" {
+		t.Errorf("mode = %d, notice = %q, want to stay browsing with a notice", model.push.mode, model.notice)
+	}
+}
+
+// Reverting loses changes for good, so it asks first, and names the files that it deletes.
+func TestRevertListsWhatWillBeLostBeforeChangingAnything(t *testing.T) {
+	model := castleWithChanges(t)
+	model.width, model.height = 120, 40
+
+	model, cmd := pressPushKey(model, "x")
+
+	if model.push.mode != pushConfirmingRevert || cmd != nil {
+		t.Fatalf("mode = %d, cmd = %v, want a confirmation and no command", model.push.mode, cmd != nil)
+	}
+
+	view := ansi.Strip(model.viewPush())
+	lose, deleted, _ := strings.Cut(view, "deleted")
+	if !strings.Contains(lose, "home/.zshrc") {
+		t.Errorf("the changed file is not listed as losing its changes:\n%s", view)
+	}
+	if !strings.Contains(deleted, "home/.newapp/config") {
+		t.Errorf("the new file is not listed as deleted:\n%s", view)
+	}
+}
+
+func TestEscCancelsTheRevert(t *testing.T) {
+	model := castleWithChanges(t)
+
+	model, _ = pressPushKey(model, "x")
+	model, cmd := pressPushKey(model, "esc")
+
+	if model.push.mode != pushBrowsing || cmd != nil || model.screen != screenPush {
+		t.Errorf("mode = %d, screen = %d, cmd = %v, want to be back on the file list", model.push.mode, model.screen, cmd != nil)
+	}
+	content, _ := os.ReadFile(filepath.Join(model.castle.Root, "home/.zshrc"))
+	if string(content) != "export A=2\n" {
+		t.Errorf(".zshrc = %q, want the change kept", content)
+	}
+}
+
+func TestConfirmingTheRevertRestoresChangedFilesAndDeletesNewOnes(t *testing.T) {
+	model := castleWithChanges(t)
+
+	model, _ = pressPushKey(model, "x")
+	model, cmd := pressPushKey(model, "y")
+
+	if cmd == nil {
+		t.Error("cmd = nil, want a reload")
+	}
+	if model.err != nil {
+		t.Fatal(model.err)
+	}
+
+	content, _ := os.ReadFile(filepath.Join(model.castle.Root, "home/.zshrc"))
+	if string(content) != "export A=1\n" {
+		t.Errorf(".zshrc = %q, want the committed content back", content)
+	}
+	// An empty directory left in the castle would be linked into $HOME as a whole.
+	if _, err := os.Stat(filepath.Join(model.castle.Root, "home/.newapp")); !os.IsNotExist(err) {
+		t.Errorf("home/.newapp still exists (err = %v), want it removed with its only file", err)
+	}
+	if len(model.push.selectedPaths()) != 0 {
+		t.Errorf("selected = %v, want the reverted files deselected", model.push.selectedPaths())
 	}
 }

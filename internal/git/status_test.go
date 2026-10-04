@@ -268,3 +268,29 @@ func TestIgnoredUntrackedListsWhatGitIgnoresInsideADirectory(t *testing.T) {
 		}
 	}
 }
+
+func TestRestoreDiscardsEveryKindOfLocalChange(t *testing.T) {
+	repo := newRepo(t)
+	for _, name := range []string{"modified", "deleted", "staged", "renamed"} {
+		commitFile(t, repo, "home/"+name, name+"\n")
+	}
+
+	writeFile(t, repo.Path, "home/modified", "changed\n")
+	if err := os.Remove(filepath.Join(repo.Path, "home/deleted")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, repo.Path, "home/staged", "changed\n")
+	mustGit(t, repo.Path, "add", "home/staged")
+	writeFile(t, repo.Path, "home/added", "new\n")
+	mustGit(t, repo.Path, "add", "home/added")
+	mustGit(t, repo.Path, "mv", "home/renamed", "home/renamed2")
+
+	err := repo.Restore("home/modified", "home/deleted", "home/staged", "home/added", "home/renamed2", "home/renamed")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if remaining := statusOf(t, repo); len(remaining) != 0 {
+		t.Errorf("status after restore = %+v, want no changes", remaining)
+	}
+}

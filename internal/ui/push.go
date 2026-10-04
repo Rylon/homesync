@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -12,14 +14,15 @@ import (
 	"github.com/Rylon/homesync/internal/validate"
 )
 
-// The push screen works in three modes: browsing the file list, composing a commit
-// message, and reporting files that failed validation.
+// The push screen works in four modes: browsing the file list, composing a commit
+// message, reporting files that failed validation, and confirming a revert.
 type pushMode int
 
 const (
 	pushBrowsing pushMode = iota
 	pushComposingCommit
 	pushProblems
+	pushConfirmingRevert
 )
 
 // pushRow is one selectable line in the file list.
@@ -130,12 +133,20 @@ func (state pushState) currentFile() (git.FileStatus, bool) {
 // selectedPaths builds a slice of the currently selected paths.
 func (state pushState) selectedPaths() []string {
 	var paths []string
-	for _, row := range state.rows {
-		if state.selected[row.file.Path] {
-			paths = append(paths, row.file.Path)
-		}
+	for _, file := range state.selectedFiles() {
+		paths = append(paths, file.Path)
 	}
 	return paths
+}
+
+func (state pushState) selectedFiles() []git.FileStatus {
+	var files []git.FileStatus
+	for _, row := range state.rows {
+		if row.heading == "" && state.selected[row.file.Path] {
+			files = append(files, row.file)
+		}
+	}
+	return files
 }
 
 // diffMsg carries a loaded diff for whichever file the cursor is on.
@@ -155,6 +166,15 @@ func (model Model) handlePushKey(msg tea.KeyPressMsg, key string) (tea.Model, te
 		if key == "esc" || key == "enter" {
 			model.push.mode = pushBrowsing
 			model.push.problems = nil
+		}
+		return model, nil
+
+	case pushConfirmingRevert:
+		switch key {
+		case "y":
+			return model.revertSelectedFiles()
+		case "esc", "n":
+			model.push.mode = pushBrowsing
 		}
 		return model, nil
 	}
@@ -211,6 +231,16 @@ func (model Model) handlePushKey(msg tea.KeyPressMsg, key string) (tea.Model, te
 		model.push.mode = pushComposingCommit
 		model.push.message.SetValue("")
 		return model, model.push.message.Focus()
+
+	// "revert" - asks to confirm, then throws away the changes to the selected files.
+	case "x":
+		if len(model.push.selectedPaths()) == 0 {
+			model.notice = "select at least one file first"
+			return model, nil
+		}
+		model.notice = ""
+		model.push.mode = pushConfirmingRevert
+		return model, nil
 
 	// "push" - checks origin, then triggers the `git push` command.
 	case "P":
@@ -319,6 +349,59 @@ func (model Model) commitSelectedFiles(message string) (tea.Model, tea.Cmd) {
 	return model, model.execGit("commit", "commit", "-m", message)
 }
 
+// revertSelectedFiles puts the selected files back to the state they were in the last commit.
+func (model Model) revertSelectedFiles() (tea.Model, tea.Cmd) {
+	model.push.mode = pushBrowsing
+
+	var tracked []string
+	files := model.push.selectedFiles()
+	for _, file := range files {
+		if file.Untracked {
+			continue
+		}
+		tracked = append(tracked, file.Path)
+		if file.OldPath != "" {
+			tracked = append(tracked, file.OldPath)
+		}
+	}
+
+	if err := model.repo.Restore(tracked...); err != nil {
+		model.err = fmt.Errorf("revert failed: %w", err)
+		return model.reload()
+	}
+
+	for _, file := range files {
+		if !file.Untracked {
+			continue
+		}
+		if err := model.deleteFromCastle(file.Path); err != nil {
+			model.err = fmt.Errorf("revert failed: %w", err)
+			return model.reload()
+		}
+	}
+
+	model.push.selected = map[string]bool{}
+	model.notice = fmt.Sprintf("reverted %s.", plural(len(files), "file"))
+	return model.reload()
+}
+
+// deleteFromCastle deletes a file, allowing a user to "revert" new files that aren't in Git yet.
+// Empty directories then get cleaned up to prevent the linker attempting to link those into $HOME.
+func (model Model) deleteFromCastle(rel string) error {
+	path := model.absPath(rel)
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+
+	for directory := filepath.Dir(path); directory != model.castle.Root; directory = filepath.Dir(directory) {
+		// Stops on the first non-empty directory.
+		if os.Remove(directory) != nil {
+			break
+		}
+	}
+	return nil
+}
+
 // pushCheckedMsg says how many commits origin has that the castle does not, just before a push.
 type pushCheckedMsg struct {
 	behind int
@@ -384,8 +467,11 @@ func (model Model) pushExecDone(msg execDoneMsg) (tea.Model, tea.Cmd) {
 // viewPush draws the push screen, with the file list, a sidepanel containing a diff, and
 // the commit message input below.
 func (model Model) viewPush() string {
-	if model.push.mode == pushProblems {
+	switch model.push.mode {
+	case pushProblems:
 		return model.viewPushProblems()
+	case pushConfirmingRevert:
+		return model.viewPushConfirmingRevert()
 	}
 
 	// Split the content width between the panels, leaving room for the divider.
@@ -404,6 +490,7 @@ func (model Model) viewPush() string {
 			[2]string{"a", "all changed"},
 			[2]string{"n", "none"},
 			[2]string{"c", "commit"},
+			[2]string{"x", "revert"},
 			[2]string{"P", "publish"},
 			[2]string{"esc", "back"},
 		)
@@ -579,6 +666,39 @@ func (model Model) viewPushProblems() string {
 	}
 
 	lines = append(lines, "", model.help([2]string{"enter", "back"}))
+
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+// viewPushConfirmingRevert shows a confirmation of the actions to be performed when reverting
+// showing tracked files that will be reverted in Git, and untracked files that will be deleted.
+func (model Model) viewPushConfirmingRevert() string {
+	var restored, deleted []string
+	for _, file := range model.push.selectedFiles() {
+		line := trimRight("  "+file.Path, model.contentWidth())
+		if file.Untracked {
+			deleted = append(deleted, line)
+		} else {
+			restored = append(restored, line)
+		}
+	}
+
+	lines := []string{
+		headingStyle.Render("Revert the selected files?"),
+		warnStyle.Width(model.contentWidth()).Render("Note: You cannot undo a revert, all changes will be lost."),
+	}
+
+	if len(restored) > 0 {
+		lines = append(lines, "", valueStyle.Render("These files will go back to the last commit:"))
+		lines = append(lines, restored...)
+	}
+
+	if len(deleted) > 0 {
+		lines = append(lines, "", valueStyle.Render("These new files will be deleted:"))
+		lines = append(lines, deleted...)
+	}
+
+	lines = append(lines, "", model.help([2]string{"y", "revert"}, [2]string{"esc", "cancel"}))
 
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }

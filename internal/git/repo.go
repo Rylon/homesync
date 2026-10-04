@@ -124,6 +124,16 @@ func (repo *Repo) Add(paths ...string) error {
 	return err
 }
 
+// Restore puts the given paths back to how they are in the last commit, in both the index and
+// the worktree. A path that is not in the last commit, such as a newly staged file, is removed.
+func (repo *Repo) Restore(paths ...string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	_, err := repo.run(normal, append([]string{"restore", "--source=HEAD", "--staged", "--worktree", "--"}, paths...)...)
+	return err
+}
+
 // IsRebasing reports whether a rebase is in progress. A rebase that has conflicts
 // ends up leaving marker text in the affected files, so it's a problem.
 func (repo *Repo) IsRebasing() bool {
