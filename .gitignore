@@ -3,3 +3,8 @@
 
 # Or the GoReleaser output.
 /dist/
+
+
+# Added by cargo
+
+/target
