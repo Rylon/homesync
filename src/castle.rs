@@ -258,13 +258,19 @@ mod tests {
     }
 
     #[test]
-    fn subdirs_handles_reading_lines_in_order() {
+    fn subdirs_keeps_the_files_own_order() {
         let repos_dir = TempDir::new().unwrap();
         let castle = make_castle(repos_dir.path(), "my_castle");
-        write_subdir_file(&castle, "line1\nline2\nline3");
+        write_subdir_file(&castle, "lineZ\nlineC\nlineA\nlineB");
 
         let subdirs = home_subdirs(&castle.root).unwrap();
-        assert_eq!(subdirs, ["line1", "line2", "line3"].map(PathBuf::from));
+
+        // Make sure the .homesick_subdir file order is preserved, for consistency when processing.
+        // between Homesync and the original Homesick.
+        assert_eq!(
+            subdirs,
+            ["lineZ", "lineC", "lineA", "lineB"].map(PathBuf::from)
+        );
     }
 
     #[test]
