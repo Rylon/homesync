@@ -311,7 +311,7 @@ mod tests {
         let repos_dir = TempDir::new().unwrap();
         let castle = make_castle(repos_dir.path(), "my_castle");
 
-        for bad_entry in ["./outside_castle_home", "/etc"] {
+        for bad_entry in ["../outside_castle_home", "/etc"] {
             write_subdir_file(&castle, &format!("line1\nline2\n{bad_entry}\n"));
             let error = home_subdirs(&castle.root).unwrap_err();
             assert_eq!(
