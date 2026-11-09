@@ -206,6 +206,19 @@ mod tests {
     }
 
     #[test]
+    fn discover_ignores_the_repos_dir_itself() {
+        let repos_dir = TempDir::new().unwrap();
+        fs::create_dir_all(repos_dir.path().join(".git")).unwrap();
+        make_castle(repos_dir.path(), "my_castle");
+        let discovered_castles = discover(repos_dir.path()).unwrap();
+
+        // Make sure a stray ".git" folder in the repos directory itself doesn't
+        // get detected as a castle, as that would mask all the actual castles.
+        assert_eq!(discovered_castles.len(), 1);
+        assert_eq!(discovered_castles[0].name, "my_castle");
+    }
+
+    #[test]
     fn discover_returns_no_castles_when_the_repos_dir_is_missing() {
         let repos_dir = TempDir::new().unwrap();
         let missing_repos_dir = repos_dir.path().join("missing");
