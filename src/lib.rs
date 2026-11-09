@@ -2,3 +2,4 @@
 compile_error!("homesync only supports macOS and Linux");
 
 pub mod castle;
+pub mod validate;
