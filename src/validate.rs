@@ -89,3 +89,45 @@ fn check_json(path: &Path) -> Result<(), Reason> {
 fn check_shell(path: &Path) -> Result<(), Reason> {
     todo!()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn make_test_file(temp_dir: &Path, name: &str, contents: &str) -> PathBuf {
+        let path = temp_dir.join(name);
+        fs::write(&path, contents).unwrap();
+        path
+    }
+
+    #[test]
+    fn accepts_valid_json() {
+        todo!()
+    }
+
+    #[test]
+    fn accepts_rejectes_truncated_json() {
+        todo!()
+    }
+
+    #[test]
+    fn rejects_json_with_trailing_comma() {
+        todo!()
+    }
+
+    #[test]
+    fn rejects_json_with_git_conflict_markers() {
+        todo!()
+    }
+
+    #[test]
+    fn ignores_unknown_file_extensions() {
+        todo!()
+    }
+
+    #[test]
+    fn ignores_missing_files() {
+        todo!()
+    }
+}
