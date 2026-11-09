@@ -178,7 +178,7 @@ mod tests {
 
         let discovered_castles = discover(repos_dir.path()).unwrap();
 
-        // We should have found the castle even with a broken symlink, this is to mostly to prevent
+        // We should have found the castle even with a broken symlink, this is mostly to prevent
         // the castle from mysteriously disappearing due to a broken symlink, though it still wouldn't
         // be functional in this state.
         assert_eq!(discovered_castles.len(), 1);
