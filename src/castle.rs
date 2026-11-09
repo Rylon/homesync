@@ -241,20 +241,16 @@ mod tests {
     fn subdirs_handles_reading_lines_in_order() {
         let repos_dir = TempDir::new().unwrap();
         let castle = make_castle(repos_dir.path(), "my_castle");
-        let subdir_file = write_subdir_file(&castle, "line1\nline2\nline3");
+        write_subdir_file(&castle, "line1\nline2\nline3");
 
-        let lines = fs::read_to_string(&subdir_file).unwrap();
-        let lines: Vec<&str> = lines.lines().collect();
-
-        assert_eq!(lines, vec!["line1", "line2", "line3"]);
+        let subdirs = home_subdirs(&castle.root).unwrap();
+        assert_eq!(subdirs, ["line1", "line2", "line3"].map(PathBuf::from));
     }
 
     #[test]
     fn subdirs_returns_empty_list_when_file_is_missing() {
         let repos_dir = TempDir::new().unwrap();
         let castle = make_castle(repos_dir.path(), "my_castle");
-        let subdirs = home_subdirs(&castle.root);
-
         let subdirs = home_subdirs(&castle.root)
             .expect("A missing .homesick_subdir file should not be an error");
         assert!(subdirs.is_empty());
