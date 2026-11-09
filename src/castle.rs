@@ -80,7 +80,7 @@ pub fn home_subdirs(castle_root: &Path) -> io::Result<Vec<PathBuf>> {
         .map(PathBuf::from)
         .collect();
 
-    // For each item we found, check to make sure the every component of the path is within the castle's home directory,
+    // For each item we found, check to make sure every component of the path is within the castle's home directory,
     // in other words - that it doesn't contain any components like ".." or absolute paths like "/etc".
     // This wouldn't make sense, and should be considered bad configuration, and we should error out if we encounter it.
     for subdir in &subdirs {
