@@ -67,20 +67,23 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    fn make_castle(temp_dir: &Path, name: &str) -> PathBuf {
+    fn make_castle(temp_dir: &Path, name: &str) -> Castle {
         let castle_dir = temp_dir.join(name);
         for dir in [".git", CASTLE_HOME_DIR_NAME] {
             // Returns an io::Result, so unwrap will panic if there were errors
             // creating these dirs, to fail the tests.
             fs::create_dir_all(castle_dir.join(dir)).unwrap();
         }
-        castle_dir
+        Castle {
+            name: name.to_string(),
+            root: castle_dir,
+        }
     }
 
     #[test]
     fn discover_finds_a_single_castle() {
         let repos_dir = TempDir::new().unwrap();
-        let castle_path = make_castle(repos_dir.path(), "my_castle");
+        let castle = make_castle(repos_dir.path(), "my_castle");
         let discovered_castles = discover(repos_dir.path()).unwrap();
 
         // We should have found a single castle:
@@ -89,10 +92,10 @@ mod tests {
         //   * castle_home() of <repos_dir>/my_castle/home
         assert_eq!(discovered_castles.len(), 1);
         assert_eq!(discovered_castles[0].name, "my_castle");
-        assert_eq!(discovered_castles[0].root, castle_path);
+        assert_eq!(discovered_castles[0].root, castle.root);
         assert_eq!(
             discovered_castles[0].castle_home(),
-            castle_path.join("home")
+            repos_dir.path().join("my_castle").join("home")
         );
     }
 
@@ -116,42 +119,42 @@ mod tests {
     #[test]
     fn discover_ignores_nested_git_folders() {
         let repos_dir = TempDir::new().unwrap();
-        let castle_path = make_castle(repos_dir.path(), "my_castle");
+        let castle = make_castle(repos_dir.path(), "my_castle");
         // Create a nested .git folder inside the castle
-        fs::create_dir_all(castle_path.join("nested").join(".git")).unwrap();
+        fs::create_dir_all(castle.root.join("nested").join(".git")).unwrap();
 
         let discovered_castles = discover(repos_dir.path()).unwrap();
         // We should have found only the top-level castle, ignoring the nested .git folder.
         assert_eq!(discovered_castles.len(), 1);
         assert_eq!(discovered_castles[0].name, "my_castle");
-        assert_eq!(discovered_castles[0].root, castle_path);
+        assert_eq!(discovered_castles[0].root, castle.root);
     }
 
     #[test]
     fn discover_supports_git_repos_using_gitfile() {
         let repos_dir = TempDir::new().unwrap();
-        let castle_path = make_castle(repos_dir.path(), "my_castle");
+        let castle = make_castle(repos_dir.path(), "my_castle");
         // Replace the .git folder the helper created with a `gitfile`, for testing
         // submodules, linked worktrees, or --separate-git-dir scenarios.
-        fs::remove_dir(castle_path.join(".git")).unwrap();
-        fs::write(castle_path.join(".git"), "gitdir: ../.git").unwrap();
+        fs::remove_dir(castle.root.join(".git")).unwrap();
+        fs::write(castle.root.join(".git"), "gitdir: ../.git").unwrap();
 
         let discovered_castles = discover(repos_dir.path()).unwrap();
 
         // We should have found the castle even with a gitfile.
         assert_eq!(discovered_castles.len(), 1);
         assert_eq!(discovered_castles[0].name, "my_castle");
-        assert_eq!(discovered_castles[0].root, castle_path);
+        assert_eq!(discovered_castles[0].root, castle.root);
     }
 
     #[test]
     fn discover_finds_a_git_repo_even_with_a_broken_symlink() {
         let repos_dir = TempDir::new().unwrap();
-        let castle_path = make_castle(repos_dir.path(), "my_castle");
+        let castle = make_castle(repos_dir.path(), "my_castle");
 
         // Replace the .git folder with a broken symlink
-        fs::remove_dir(castle_path.join(".git")).unwrap();
-        std::os::unix::fs::symlink("/non_existent_dir", castle_path.join(".git")).unwrap();
+        fs::remove_dir(castle.root.join(".git")).unwrap();
+        std::os::unix::fs::symlink("/non_existent_dir", castle.root.join(".git")).unwrap();
 
         let discovered_castles = discover(repos_dir.path()).unwrap();
 
@@ -160,7 +163,7 @@ mod tests {
         // be functional in this state.
         assert_eq!(discovered_castles.len(), 1);
         assert_eq!(discovered_castles[0].name, "my_castle");
-        assert_eq!(discovered_castles[0].root, castle_path);
+        assert_eq!(discovered_castles[0].root, castle.root);
     }
 
     #[test]
