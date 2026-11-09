@@ -227,7 +227,7 @@ mod tests {
 
         // We treat a missing repos folder as having found no castles, because this might be the
         // first time the user is running Homesync.
-        assert_eq!(discovered_castles.len(), 0);
+        assert!(discovered_castles.is_empty());
     }
 
     // These tests are for the .homesick_subdir handling --------------------------
@@ -255,12 +255,9 @@ mod tests {
         let castle = make_castle(repos_dir.path(), "my_castle");
         let subdirs = home_subdirs(&castle.root);
 
-        assert_eq!(
-            subdirs
-                .expect("A missing .homesick_subdir file should not be an error")
-                .len(),
-            0
-        );
+        let subdirs = home_subdirs(&castle.root)
+            .expect("A missing .homesick_subdir file should not be an error");
+        assert!(subdirs.is_empty());
     }
 
     #[test]
