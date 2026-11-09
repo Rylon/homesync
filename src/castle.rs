@@ -1,6 +1,6 @@
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub const CASTLE_HOME_DIR_NAME: &str = "home";
 pub const SUBDIR_FILENAME: &str = ".homesick_subdir";
@@ -72,12 +72,32 @@ pub fn home_subdirs(castle_root: &Path) -> io::Result<Vec<PathBuf>> {
         Err(error) => return Err(error),
     };
 
-    let subdirs = file_contents
+    // Parse the file contents into a list of subdirectories, skipping empty lines, and trimming whitespace.
+    let subdirs: Vec<PathBuf> = file_contents
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .map(PathBuf::from)
         .collect();
+
+    // For each item we found, check to make sure the every component of the path is within the castle's home directory,
+    // in other words - that it doesn't contain any components like ".." or absolute paths like "/etc".
+    // This wouldn't make sense, and should be considered bad configuration, and we should error out if we encounter it.
+    for subdir in &subdirs {
+        let is_inside_home = subdir
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)));
+
+        if !is_inside_home {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "the subdirectory {:?} listed in {SUBDIR_FILENAME} is not inside the home directory of this castle",
+                    subdir
+                ),
+            ));
+        }
+    }
 
     Ok(subdirs)
 }
@@ -278,5 +298,17 @@ mod tests {
         let subdirs = home_subdirs(&castle.root).unwrap();
 
         assert_eq!(subdirs, ["line1", "line2", "line3"].map(PathBuf::from));
+    }
+
+    #[test]
+    fn subdirs_refuses_bad_config() {
+        let repos_dir = TempDir::new().unwrap();
+        let castle = make_castle(repos_dir.path(), "my_castle");
+        write_subdir_file(&castle, "line1\nline2\n../outside_castle_home\n/etc");
+
+        // Entries in the .homesick_subdir config that are outside of the castle's home are invalid,
+        // and should cause an error.
+        let result = home_subdirs(&castle.root);
+        assert!(result.is_err());
     }
 }
