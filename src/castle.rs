@@ -304,11 +304,15 @@ mod tests {
     fn subdirs_refuses_bad_config() {
         let repos_dir = TempDir::new().unwrap();
         let castle = make_castle(repos_dir.path(), "my_castle");
-        write_subdir_file(&castle, "line1\nline2\n../outside_castle_home\n/etc");
 
-        // Entries in the .homesick_subdir config that are outside of the castle's home are invalid,
-        // and should cause an error.
-        let result = home_subdirs(&castle.root);
-        assert!(result.is_err());
+        for bad_entry in ["./outside_castle_home", "/etc"] {
+            write_subdir_file(&castle, &format!("line1\nline2\n{bad_entry}\n"));
+            let error = home_subdirs(&castle.root).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                io::ErrorKind::InvalidData,
+                "{bad_entry:?} is not a valid entry in .homesick_subdir"
+            );
+        }
     }
 }
