@@ -62,6 +62,26 @@ fn find_castles(dir: &Path, castles: &mut Vec<Castle>) -> io::Result<()> {
     Ok(())
 }
 
+pub fn home_subdirs(castle_root: &Path) -> io::Result<Vec<PathBuf>> {
+    // The .homesick_subdir file contains a list of folders within the castle's "home" which have their files
+    // symlinked one by one, rather than the whole folder being symlinked. It's a feature of Homesick that
+    // we're backwards compatible with. It's optional, so we return an empty list if it doesn't exist.
+    let file_contents = match fs::read_to_string(castle_root.join(SUBDIR_FILENAME)) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error),
+    };
+
+    let subdirs = file_contents
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(PathBuf::from)
+        .collect();
+
+    Ok(subdirs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,5 +215,62 @@ mod tests {
         // We treat a missing repos folder as having found no castles, because this might be the
         // first time the user is running Homesync.
         assert_eq!(discovered_castles.len(), 0);
+    }
+
+    // These tests are for the .homesick_subdir handling --------------------------
+    fn write_subdir_file(castle: &Castle, contents: &str) -> PathBuf {
+        let subdir_file = castle.root.join(SUBDIR_FILENAME);
+        fs::write(&subdir_file, contents).unwrap();
+        subdir_file
+    }
+
+    #[test]
+    fn subdirs_handles_reading_lines_in_order() {
+        let repos_dir = TempDir::new().unwrap();
+        let castle = make_castle(repos_dir.path(), "my_castle");
+        let subdir_file = write_subdir_file(&castle, "line1\nline2\nline3");
+
+        let lines = fs::read_to_string(&subdir_file).unwrap();
+        let lines: Vec<&str> = lines.lines().collect();
+
+        assert_eq!(lines, vec!["line1", "line2", "line3"]);
+    }
+
+    #[test]
+    fn subdirs_returns_empty_list_when_file_is_missing() {
+        let repos_dir = TempDir::new().unwrap();
+        let castle = make_castle(repos_dir.path(), "my_castle");
+        let subdirs = home_subdirs(&castle.root);
+
+        assert_eq!(
+            subdirs
+                .expect("A missing .homesick_subdir file should not be an error")
+                .len(),
+            0
+        );
+    }
+
+    #[test]
+    fn subdirs_skips_empty_lines() {
+        let repos_dir = TempDir::new().unwrap();
+        let castle = make_castle(repos_dir.path(), "my_castle");
+        write_subdir_file(&castle, "\nline1\n\n   \nline2\n\n");
+
+        let subdirs = home_subdirs(&castle.root).unwrap();
+
+        assert_eq!(subdirs, ["line1", "line2"].map(PathBuf::from));
+    }
+
+    #[test]
+    fn subdirs_handles_crlf_line_endings() {
+        // macOS and Linux use LF (\n) for line ending, but Windows uses CRLF (\r\n), so we
+        // need to make sure we handle those, in case a Windows machine made any commits.
+        let repos_dir = TempDir::new().unwrap();
+        let castle = make_castle(repos_dir.path(), "my_castle");
+        write_subdir_file(&castle, "line1\r\nline2\r\nline3\r\n");
+
+        let subdirs = home_subdirs(&castle.root).unwrap();
+
+        assert_eq!(subdirs, ["line1", "line2", "line3"].map(PathBuf::from));
     }
 }
