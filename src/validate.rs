@@ -136,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn rejectes_truncated_json() {
+    fn rejects_truncated_json() {
         let temp_dir = TempDir::new().unwrap();
         let test_file = make_test_file(&temp_dir, "invalid.json", r#"{"key": "value""#);
 
