@@ -95,39 +95,67 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    fn make_test_file(temp_dir: &Path, name: &str, contents: &str) -> PathBuf {
-        let path = temp_dir.join(name);
+    fn make_test_file(temp_dir: &TempDir, name: &str, contents: &str) -> PathBuf {
+        let path = temp_dir.path().join(name);
         fs::write(&path, contents).unwrap();
         path
     }
 
     #[test]
     fn accepts_valid_json() {
-        todo!()
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(
+            &temp_dir,
+            "valid.json",
+            r#"{"key": "value", "nested":{"key2": ["value1", "value2"]}}"#,
+        );
+        check(&test_file).unwrap();
     }
 
     #[test]
-    fn accepts_rejectes_truncated_json() {
-        todo!()
+    fn rejectes_truncated_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(&temp_dir, "invalid.json", r#"{"key": "value""#);
+
+        let problem = check(&test_file).unwrap_err();
+        assert!(matches!(problem.reason, Reason::InvalidJson(_)));
+        assert!(problem.to_string().contains("invalid.json"));
     }
 
     #[test]
     fn rejects_json_with_trailing_comma() {
-        todo!()
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(&temp_dir, "invalid.json", r#"{"key": "value",}"#);
+
+        let problem = check(&test_file).unwrap_err();
+        assert!(matches!(problem.reason, Reason::InvalidJson(_)));
+        assert!(problem.to_string().contains("invalid.json"));
     }
 
     #[test]
     fn rejects_json_with_git_conflict_markers() {
-        todo!()
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(
+            &temp_dir,
+            "invalid.json",
+            r#""{\n<<<<<<< HEAD\n\"a\": 1\n=======\n\"a\": 2\n>>>>>>> other\n}\n""#,
+        );
+
+        let problem = check(&test_file).unwrap_err();
+        assert!(matches!(problem.reason, Reason::InvalidJson(_)));
+        assert!(problem.to_string().contains("invalid.json"));
     }
 
     #[test]
     fn ignores_unknown_file_extensions() {
-        todo!()
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(&temp_dir, "unknown_file_extension.mystery", "");
+        check(&test_file).unwrap();
     }
 
     #[test]
     fn ignores_missing_files() {
-        todo!()
+        let temp_dir = TempDir::new().unwrap();
+        check(&temp_dir.path().join("does_not_exist.json")).unwrap();
     }
 }
