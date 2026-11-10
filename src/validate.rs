@@ -138,7 +138,7 @@ mod tests {
         let test_file = make_test_file(
             &temp_dir,
             "invalid.json",
-            r#""{\n<<<<<<< HEAD\n\"a\": 1\n=======\n\"a\": 2\n>>>>>>> other\n}\n""#,
+            "{\n<<<<<<< HEAD\n\"a\": 1\n=======\n\"a\": 2\n>>>>>>> other\n}\n",
         );
 
         let problem = check(&test_file).unwrap_err();
