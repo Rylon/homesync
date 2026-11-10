@@ -188,11 +188,8 @@ mod tests {
     #[test]
     fn accepts_valid_shell_script() {
         let temp_dir = TempDir::new().unwrap();
-        let test_file = make_test_file(
-            &temp_dir,
-            "valid.sh",
-            r#"#!/bin/bash\necho "Hello, world!""#,
-        );
+        let test_file =
+            make_test_file(&temp_dir, "valid.sh", "#!/bin/bash\necho \"Hello, world!\"");
         check(&test_file).unwrap();
     }
 
@@ -216,7 +213,7 @@ mod tests {
         let test_file = make_test_file(
             &temp_dir,
             "valid.bash",
-            r#"#!/bin/bash\necho "Hello, world!""#,
+            "#!/bin/bash\necho \"Hello, world!\"",
         );
         check(&test_file).unwrap();
 
