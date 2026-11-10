@@ -60,7 +60,11 @@ pub fn check(path: &Path) -> Result<(), Problem> {
 }
 
 pub fn check_all(paths: &[PathBuf]) -> Vec<Problem> {
-    todo!()
+    // Snazzy "one-liner", though cargo fmt put it on multiple lines :D
+    paths
+        .iter() // Converts the slice into an iterator of &PathBufs.
+        .filter_map(|path| check(path).err()) // Keeps only the files that failed validation.
+        .collect() // Collects the problems into a Vec<Problem>.
 }
 
 fn check_file(path: &Path) -> Result<(), Reason> {
@@ -225,5 +229,44 @@ mod tests {
         let problem = check(&test_file).unwrap_err();
         assert!(matches!(problem.reason, Reason::InvalidShell(_)));
         assert!(problem.to_string().contains("invalid.bash"));
+    }
+
+    #[test]
+    fn check_all_reports_every_problem() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let valid_json = make_test_file(&temp_dir, "valid.json", "{}");
+        let invalid_json = make_test_file(&temp_dir, "invalid.json", "{");
+        let valid_bash = make_test_file(
+            &temp_dir,
+            "valid.bash",
+            "#!/bin/bash\necho \"Hello, world!\"",
+        );
+        let invalid_bash =
+            make_test_file(&temp_dir, "invalid.bash", "#!/bin/bash\necho \"Hello, !");
+
+        let paths = vec![valid_json, invalid_json, valid_bash, invalid_bash];
+        let problems = check_all(&paths);
+
+        assert_eq!(problems.len(), 2);
+        assert_eq!(problems[0].path, paths[1]);
+        assert_eq!(problems[1].path, paths[3]);
+    }
+
+    #[test]
+    fn check_all_reports_no_problems_for_valid_files() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let valid_json = make_test_file(&temp_dir, "valid.json", "{}");
+        let valid_bash = make_test_file(
+            &temp_dir,
+            "valid.bash",
+            "#!/bin/bash\necho \"Hello, world!\"",
+        );
+
+        let paths = vec![valid_json, valid_bash];
+        let problems = check_all(&paths);
+
+        assert!(problems.is_empty());
     }
 }
