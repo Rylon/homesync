@@ -179,6 +179,9 @@ mod tests {
     #[test]
     fn ignores_missing_files() {
         let temp_dir = TempDir::new().unwrap();
+        // Here we make sure a missing file doesn't cause an error. We use a file extension that
+        // would normally result in a check, otherwise we wouldn't know if the behaviour was
+        // correct, or the file was being skipped because it didn't have a checkable file extension.
         check(&temp_dir.path().join("does_not_exist.json")).unwrap();
     }
 
