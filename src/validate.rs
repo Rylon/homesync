@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn ignores_unknown_file_extensions() {
         let temp_dir = TempDir::new().unwrap();
-        let test_file = make_test_file(&temp_dir, "unknown_file_extension.mystery", "");
+        let test_file = make_test_file(&temp_dir, "unknown_file_extension.mystery", "{");
         check(&test_file).unwrap();
     }
 
