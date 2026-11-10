@@ -87,7 +87,30 @@ fn check_json(path: &Path) -> Result<(), Reason> {
 }
 
 fn check_shell(path: &Path) -> Result<(), Reason> {
-    todo!()
+    let directory = path.parent().unwrap_or(Path::new("."));
+    let filename = path.file_name().unwrap_or(path.as_os_str());
+
+    let cmd_output = Command::new("bash")
+        .current_dir(directory)
+        .arg("-n")
+        .arg(filename)
+        .output()?;
+
+    // If bash succeeds, then the shell script is valid syntax.
+    if cmd_output.status.success() {
+        return Ok(());
+    }
+
+    // Otherwise we try to fetch the error text from stderr, or
+    // just the exit code if stderr is empty.
+    let stderr = String::from_utf8_lossy(&cmd_output.stderr);
+    let error_message = if stderr.trim().is_empty() {
+        cmd_output.status.to_string()
+    } else {
+        stderr.trim_end().to_owned()
+    };
+
+    Err(Reason::InvalidShell(error_message))
 }
 
 #[cfg(test)]
@@ -157,5 +180,50 @@ mod tests {
     fn ignores_missing_files() {
         let temp_dir = TempDir::new().unwrap();
         check(&temp_dir.path().join("does_not_exist.json")).unwrap();
+    }
+
+    #[test]
+    fn accepts_valid_shell_script() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(
+            &temp_dir,
+            "valid.sh",
+            r#"#!/bin/bash\necho "Hello, world!""#,
+        );
+        check(&test_file).unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_shell_script() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(
+            &temp_dir,
+            "invalid.sh",
+            "#!/bin/bash\nif [ -n \"$HOME\" ]; then echo \"HOME is set to $HOME!\n",
+        );
+
+        let problem = check(&test_file).unwrap_err();
+        assert!(matches!(problem.reason, Reason::InvalidShell(_)));
+        assert!(problem.to_string().contains("invalid.sh"));
+    }
+
+    #[test]
+    fn handles_bash_as_a_file_extension() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = make_test_file(
+            &temp_dir,
+            "valid.bash",
+            r#"#!/bin/bash\necho "Hello, world!""#,
+        );
+        check(&test_file).unwrap();
+
+        let test_file = make_test_file(
+            &temp_dir,
+            "invalid.bash",
+            "#!/bin/bash\necho \"Hello, world!",
+        );
+        let problem = check(&test_file).unwrap_err();
+        assert!(matches!(problem.reason, Reason::InvalidShell(_)));
+        assert!(problem.to_string().contains("invalid.bash"));
     }
 }
